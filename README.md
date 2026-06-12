@@ -19,6 +19,15 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### C — Expandable per-ISR detail (replaces the static side card)
+Selecting an ISR row now expands an inline **full-detail panel** (`DataGrid.RowDetailsTemplate`, `RowDetailsVisibilityMode=VisibleWhenSelected`) showing:
+- A **side-by-side ISR(online) vs AT(Message Set) comparison table** — Tx/Rx, Frame, PDU, Size, Unit, Min, Max, Resolution, Coding, Meaning, Period, Unavailable value, Network path, Change-mgmt n°. **Mismatched rows are tinted red** (blank-tolerant, numeric-aware match, mirroring `PropertyComparisonService.Same`).
+- **CRC & Clock shown as distinct status badges** ("reuse existing" green / "new needed" amber / "present (coverage unknown)" blue / "n/a" grey), driven by new `IsrDemand.CrcStatus` / `ClkStatus` that `PropertyFillService` now records alongside the existing `CrcNote`.
+- The **validation findings for that ISR inline** (severity-coloured rule chips) + a "clean" placeholder.
+- The per-ISR **note editor**.
+
+Built by a new pure `IsrDetailBuilder` service (parses Logical/Analog via `SignalDataParser`, matches the `SignalDef`, fills `IsrDemand.Detail`), run as part of the pipeline.
+
 ### B — Level + Property Fill merged into the Exchange File page
 - The standalone **Level Assignment** and **Property Fill** pages (and their view-models) are **removed**. Their data now lives as columns on the unified Exchange File grid: the **Level chip**, filled **Frame / PDU / Bits**, and **CRC/CLK** (all already present, now the single home for them).
 - Level + fill orchestration moved into `MainViewModel.RunPipeline()` (assign levels → fill → validate → refresh every page); it runs automatically on load.

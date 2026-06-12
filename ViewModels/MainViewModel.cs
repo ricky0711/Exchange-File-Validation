@@ -15,6 +15,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ValidationService _vsvc = new();
     private readonly LevelAssignmentService _lsvc = new();
     private readonly PropertyFillService _fillSvc = new();
+    private readonly IsrDetailBuilder _detailSvc = new();
     private ReferenceData? _data;
     private HashSet<string>? _secondArch;
 
@@ -96,6 +97,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (_data is null) return;
         var summaries = _vsvc.Validate(_data.Demands, _data);
+        foreach (var d in _data.Demands) _detailSvc.Build(d, _data);   // side-by-side ISR vs AT detail
         Validation.SetData(_data);
         Checklist.SetSummaries(summaries);
         ExchangeFile.SetData(_data);   // rebuild so row severity tints refresh

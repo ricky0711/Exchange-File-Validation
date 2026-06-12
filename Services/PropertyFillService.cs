@@ -22,6 +22,7 @@ public sealed class PropertyFillService
         {
             d.FilledFrame = d.FilledPdu = d.FilledFrameId = d.FilledValueType = "";
             d.FilledUnit = d.FilledMin = d.FilledMax = d.FillSource = d.FillStatus = d.CrcNote = "";
+            d.CrcStatus = d.ClkStatus = "";
             d.FilledBits = null; d.HasCrcOnFrame = d.HasClkOnFrame = false;
 
             var name = d.ParameterProposal ?? "";
@@ -59,7 +60,10 @@ public sealed class PropertyFillService
             frameHasCrcClk.TryGetValue(def.FrameName, out var cc);
             d.HasCrcOnFrame = cc.crc is not null;
             d.HasClkOnFrame = cc.clk is not null;
-            d.CrcNote = ReuseNote(cc.crc, "CRC", d) + "; " + ReuseNote(cc.clk, "Clock", d);
+            var (crcNote, crcState) = Reuse(cc.crc, "CRC", d);
+            var (clkNote, clkState) = Reuse(cc.clk, "Clock", d);
+            d.CrcNote = crcNote + "; " + clkNote;
+            d.CrcStatus = crcState; d.ClkStatus = clkState;
             d.FillStatus = $"Filled from {source}. {d.CrcNote}";
         }
     }
@@ -84,16 +88,16 @@ public sealed class PropertyFillService
 
     /// <summary>Macro AddISRClockAndCRC logic: an existing CRC/Clock is reusable only if it already
     /// has T at the demand's emitter and R at the receiver in the Message List node columns.</summary>
-    private static string ReuseNote(SignalDef? sig, string kind, IsrDemand d)
+    private static (string note, string state) Reuse(SignalDef? sig, string kind, IsrDemand d)
     {
-        if (sig is null) return $"no {kind} on frame - new {kind} likely needed";
+        if (sig is null) return ($"no {kind} on frame - new {kind} likely needed", "new");
         bool know = sig.EcuTxRx.Count > 0;
-        if (!know) return $"{kind} present (Tx/Rx coverage unknown)";
+        if (!know) return ($"{kind} present (Tx/Rx coverage unknown)", "present");
         bool tOk = sig.EcuTxRx.TryGetValue(d.Emitter ?? "", out var tv) && tv.Contains('T', StringComparison.OrdinalIgnoreCase);
         bool rOk = sig.EcuTxRx.TryGetValue(d.Receiver ?? "", out var rv) && rv.Contains('R', StringComparison.OrdinalIgnoreCase);
-        if (tOk && rOk) return $"{kind} reusable (covers Tx+Rx)";
+        if (tOk && rOk) return ($"{kind} reusable (covers Tx+Rx)", "reuse");
         var miss = (!tOk ? "T@" + d.Emitter + " " : "") + (!rOk ? "R@" + d.Receiver : "");
-        return $"{kind} present but missing {miss.Trim()} - new {kind} may be needed";
+        return ($"{kind} present but missing {miss.Trim()} - new {kind} may be needed", "new");
     }
 
     public static (int filled, int pending, int newSig) Counts(IEnumerable<IsrDemand> demands)

@@ -6,6 +6,10 @@
     <UserControl.Resources>
         <views:LevelToBrushConverter x:Key="LevelToBrush" />
         <views:WorstSeverityToRowBrushConverter x:Key="RowTint" />
+        <views:MismatchTintConverter x:Key="MismatchTint" />
+        <views:CrcStateToBrushConverter x:Key="CrcStateToBrush" />
+        <views:SeverityToBrushConverter x:Key="SeverityToBrush" />
+        <views:NullToVisibleConverter x:Key="NullToVisible" />
     </UserControl.Resources>
 
     <Grid Margin="24,8,24,16">
@@ -14,13 +18,9 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="300" />
-        </Grid.ColumnDefinitions>
 
         <!-- Action bar: level/fill re-run (merged from the old Level + Property Fill pages) -->
-        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8">
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -28,9 +28,9 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <ui:Button Grid.Column="0" Content="Re-run level + fill" Appearance="Primary"
-                       Command="{Binding RerunCommand}" Icon="{ui:SymbolIcon ArrowSync24}" Margin="0,0,8,0" />
+                       Command="{Binding RerunCommand}" Margin="0,0,8,0" />
             <ui:Button Grid.Column="1" Content="Load 2nd Architecture (L2.1)"
-                       Command="{Binding LoadSecondArchCommand}" Icon="{ui:SymbolIcon FolderArrowUp24}" Margin="0,0,8,0" />
+                       Command="{Binding LoadSecondArchCommand}" Icon="{ui:SymbolIcon Layer24}" Margin="0,0,8,0" />
             <TextBlock Grid.Column="2" VerticalAlignment="Center" Opacity="0.6" FontSize="11"
                        Text="{Binding SecondArchName, StringFormat='2nd arch: {0}'}" />
             <TextBlock Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right"
@@ -38,7 +38,8 @@
                        Text="{Binding PipelineSummary}" />
         </Grid>
 
-        <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,10">
+        <!-- Filter bar -->
+        <Grid Grid.Row="1" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="120" />
@@ -50,7 +51,6 @@
             <ComboBox Grid.Column="1" ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding SelectedStatus}" Margin="0,0,6,0" />
             <ComboBox Grid.Column="2" ItemsSource="{Binding LevelFilters}" SelectedItem="{Binding SelectedLevel}" Margin="0,0,6,0" />
 
-            <!-- Columns show/hide chooser -->
             <ToggleButton x:Name="ColumnsToggle" Grid.Column="3" Margin="0,0,6,0" Padding="10,6">
                 <StackPanel Orientation="Horizontal">
                     <ui:SymbolIcon Symbol="Table24" FontSize="14" Margin="0,0,6,0" />
@@ -92,7 +92,8 @@
                   ScrollViewer.CanContentScroll="True"
                   GridLinesVisibility="All" HeadersVisibility="Column"
                   RowHeaderWidth="0" SelectionMode="Single" ColumnWidth="Auto"
-                  SelectedItem="{Binding SelectedDemand}">
+                  SelectedItem="{Binding SelectedDemand}"
+                  RowDetailsVisibilityMode="VisibleWhenSelected">
             <DataGrid.Resources>
                 <!-- Custom cell template for the Level chip column (built programmatically) -->
                 <DataTemplate x:Key="LevelChipCell">
@@ -107,54 +108,102 @@
                     <Setter Property="Background" Value="{Binding WorstSeverity, Converter={StaticResource RowTint}}" />
                 </Style>
             </DataGrid.RowStyle>
+
+            <!-- Expandable per-ISR detail: ISR (online) vs AT (Message Set), CRC/CLK badges, findings, note -->
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="16" Margin="2,4,2,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="300" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- LEFT: side-by-side property comparison -->
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"
+                                           Text="{Binding ParameterProposal, StringFormat='Signal: {0}'}" />
+
+                                <!-- CRC / Clock badges -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Border CornerRadius="4" Padding="8,3" Margin="0,0,8,0"
+                                            Background="{Binding Detail.CrcState, Converter={StaticResource CrcStateToBrush}}">
+                                        <TextBlock Text="{Binding Detail.CrcBadge}" Foreground="White" FontWeight="SemiBold" FontSize="11" />
+                                    </Border>
+                                    <Border CornerRadius="4" Padding="8,3"
+                                            Background="{Binding Detail.ClkState, Converter={StaticResource CrcStateToBrush}}">
+                                        <TextBlock Text="{Binding Detail.ClkBadge}" Foreground="White" FontWeight="SemiBold" FontSize="11" />
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Comparison table header -->
+                                <Grid Margin="0,0,0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="PROPERTY" Opacity="0.5" FontSize="10" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="1" Text="ISR (ONLINE)" Opacity="0.5" FontSize="10" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="2" Text="AT (MESSAGE SET)" Opacity="0.5" FontSize="10" FontWeight="SemiBold" />
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding Detail.Props}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding Match, Converter={StaticResource MismatchTint}}"
+                                                    CornerRadius="3" Padding="4,3" Margin="0,1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="190" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Property}" FontSize="12" Opacity="0.85" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding IsrValue}" FontSize="12" TextWrapping="Wrap" Margin="6,0" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding MsgSetValue}" FontSize="12" TextWrapping="Wrap" Margin="6,0" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- RIGHT: findings + note for this ISR -->
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="FINDINGS" Opacity="0.5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                <ItemsControl ItemsSource="{Binding Findings}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Grid.Column="0" CornerRadius="3" Padding="6,1" Height="18" VerticalAlignment="Top"
+                                                        Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}">
+                                                    <TextBlock Text="{Binding Rule}" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="{Binding Message}" FontSize="11" TextWrapping="Wrap" Margin="6,0,0,0" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="No findings — clean." FontSize="11" Opacity="0.5" Margin="0,2"
+                                           Visibility="{Binding WorstSeverity, Converter={StaticResource NullToVisible}}" />
+
+                                <Separator Margin="0,10" />
+                                <TextBlock Text="NOTE (this ISR)" Opacity="0.5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                <ui:TextBox Text="{Binding Note, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                            AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                                            PlaceholderText="Add a note for this ISR…" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
         </DataGrid>
-
-        <!-- ISR vs AT compare panel (UF_CompareISRandAT equivalent) -->
-        <ui:Card Grid.Row="2" Grid.Column="1" Margin="12,0,0,0" Padding="14">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="ISR vs AT" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8" />
-                    <TextBlock Text="{Binding SelectedDemand.ParameterProposal, FallbackValue=Select a row}"
-                               FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,10" />
-
-                    <TextBlock Text="REQUEST (ISR)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9"
-                               Text="{Binding SelectedDemand.Route, FallbackValue=-}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9"
-                               Text="{Binding SelectedDemand.UpdateTime, StringFormat='UpdateTime: {0}', FallbackValue=-}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9" MaxHeight="120"
-                               Text="{Binding SelectedDemand.LogicalData, StringFormat='Logical: {0}', FallbackValue=-}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9" MaxHeight="120"
-                               Text="{Binding SelectedDemand.AnalogData, StringFormat='Analog: {0}', FallbackValue=-}" />
-
-                    <Separator Margin="0,10" />
-                    <TextBlock Text="AT DEFINITION (Message List)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.FrameName, StringFormat='Frame: {0}', FallbackValue=Not in AT}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.PduName, StringFormat='PDU: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.SignalSizeBits, StringFormat='Bits: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.TransmissionType, StringFormat='Tx type: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.Period, StringFormat='Period: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.Min, StringFormat='Min: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" Text="{Binding AtDef.Max, StringFormat='Max: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" MaxHeight="100"
-                               Text="{Binding AtDef.Coding, StringFormat='Coding: {0}', FallbackValue=''}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" MaxHeight="160" Opacity="0.85"
-                               Text="{Binding AtDef.Meaning, StringFormat='Meaning: {0}', FallbackValue=''}" />
-
-                    <Separator Margin="0,10" />
-                    <TextBlock Text="FINDINGS" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap"
-                               Text="{Binding SelectedDemand.Issues, FallbackValue=-}" />
-                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.8" Margin="0,6,0,0"
-                               Text="{Binding SelectedDemand.CrcNote, FallbackValue=''}" />
-
-                    <Separator Margin="0,10" />
-                    <TextBlock Text="NOTE (this ISR)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
-                    <ui:TextBox Text="{Binding SelectedDemand.Note, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
-                                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
-                                PlaceholderText="Add a note for this ISR…" />
-                </StackPanel>
-            </ScrollViewer>
-        </ui:Card>
     </Grid>
 </UserControl>

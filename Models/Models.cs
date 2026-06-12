@@ -129,6 +129,11 @@ public sealed class IsrDemand
     public bool HasCrcOnFrame { get; set; }
     public bool HasClkOnFrame { get; set; }
     public string CrcNote { get; set; } = "";       // Tx/Rx-aware reuse / new-needed note
+    public string CrcStatus { get; set; } = "";     // "reuse" | "new" | "present" | "" — drives the CRC badge
+    public string ClkStatus { get; set; } = "";     // "reuse" | "new" | "present" | "" — drives the Clock badge
+
+    /// <summary>Side-by-side ISR-vs-AT comparison for the expandable row detail (built by IsrDetailBuilder).</summary>
+    public IsrDetail? Detail { get; set; }
     public string FillSource { get; set; } = "";    // "Message List" / "2nd architecture" / ""
     public string FillStatus { get; set; } = "";    // human note
     public string CrcClk => (HasCrcOnFrame ? "CRC " : "") + (HasClkOnFrame ? "CLK" : "");
@@ -150,6 +155,9 @@ public sealed class IsrDemand
 
     public string Issues => string.Join("  •  ",
         Results.Where(r => r.Rule != "Level").Select(r => $"[{r.Rule}] {r.Message}"));
+
+    /// <summary>Validation findings for this ISR (excluding the informational Level note), for the inline detail.</summary>
+    public IEnumerable<ValidationResult> Findings => Results.Where(r => r.Rule != "Level");
 }
 
 public enum Severity { Info, Warning, Error }
@@ -166,6 +174,22 @@ public sealed record DiffRow(string Isr, string Field, string ExchangeValue, str
 public sealed record CompareRow(string Isr, string Signal, string Property, string IsrValue, string MsgSetValue, bool Match)
 {
     public string Status => Match ? "Match" : "Mismatch";
+}
+
+/// <summary>Expandable per-ISR detail: the side-by-side ISR(online) vs AT(Message Set) comparison + CRC/CLK badges.</summary>
+public sealed class IsrDetail
+{
+    /// <summary>True when the proposed signal was matched in the Message Set (or 2nd architecture).</summary>
+    public bool HasAt { get; init; }
+
+    /// <summary>Property-by-property comparison rows (ISR value vs Message-Set value, with a Match flag).</summary>
+    public List<CompareRow> Props { get; } = new();
+
+    // CRC / Clock badges (text + state for colouring): state ∈ { reuse, new, present, "" }
+    public string CrcBadge { get; init; } = "";
+    public string CrcState { get; init; } = "";
+    public string ClkBadge { get; init; } = "";
+    public string ClkState { get; init; } = "";
 }
 
 /// <summary>One row of the validation checklist dashboard.</summary>
