@@ -19,6 +19,13 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### F — Export: explicit 212 / 270 layouts + Ready-to-import gate (PROVISIONAL)
+`ExportService` now has **two distinct, explicit column layouts** built from a small `Col(Header, selector, Text)` model:
+- **270** = full layout (adds Frame ID, PDU, Signal Size, Value Type, Logical/Analog data, KindOfIsr, OtherRequirements, CRC/CLK + Level + the gate);
+- **212** = reduced core subset.
+A **"Ready to import" gate column** is included; the gate is derived from validation — a demand is *Ready to import* unless it has a blocking **Error** finding (set on `IsrDemand.ImportStatus` by `IsrDetailBuilder`). "Export only ready" filters on it. Text formatting stays forced on Feature_Number / EmitterCode / ReceiverCode. The Export page shows column count + ready/blocked counts.
+**⚠ Provisional** — the exact per-format order/headers and the real gate column still need a real Alliance 270/212 sample; send one and this locks to it exactly.
+
 ### H — Design pass (in progress)
 - Added a **shared soft-shadow** resource (`App.xaml` → `SoftShadow`) applied consistently to the card surfaces — dashboard KPI cards, checklist rows, and the per-ISR detail panel — for a lighter, more "instrument-like" depth.
 - All new status colour is theme-safe in **both light and dark**: level/severity/CRC-CLK badges use solid chips with white text; row/mismatch tints and the filter funnel use translucent ARGB so they read on either background.

@@ -117,6 +117,7 @@ public partial class MainViewModel : ObservableObject
             ExchangeFile.UpdatePipelineSummary(data);
             IsrVsMsgSet.SetData(data);
             OtherReqCompare.SetData(data);
+            Export.SetData(data);                // refresh ready/blocked gate counts
             Dashboard.Update(data, summaries);
             Status = "Validation complete  ✓  " + data.Summary;
         }

@@ -6,7 +6,10 @@
         <ui:Card Padding="24" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="560">
             <StackPanel>
                 <TextBlock Text="Export Alliance Import File" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4" />
-                <TextBlock Text="Generates the Preevision ISR import sheet (212 / 270)." Opacity="0.7" Margin="0,0,0,16" />
+                <TextBlock Text="Generates the Preevision ISR import sheet. 270 = full layout, 212 = reduced core. Includes a 'Ready to import' gate column (a demand is ready unless it has a blocking Error)."
+                           Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,4" />
+                <TextBlock Text="Provisional layout — will be reconciled to a real Alliance export sample."
+                           Opacity="0.5" FontSize="11" FontStyle="Italic" Margin="0,0,0,16" />
 
                 <TextBlock Text="Format" Opacity="0.8" Margin="0,0,0,4" />
                 <ComboBox Width="160" HorizontalAlignment="Left" ItemsSource="{Binding Formats}"

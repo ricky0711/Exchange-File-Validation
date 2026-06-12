@@ -75,6 +75,10 @@ public sealed class IsrDetailBuilder
         Row("Change mgmt n°", d.ReqChangeMgmt, "");
 
         d.Detail = detail;
+
+        // Provisional "Ready to import" gate: a demand is ready unless it has a blocking Error finding.
+        // (Real Alliance gate is an explicit column — reconcile when a sample export is available.)
+        d.ImportStatus = d.WorstSeverity == Severity.Error ? "Blocked (errors)" : "Ready to import";
     }
 
     private static string Badge(string kind, string state, bool onFrame) => state switch

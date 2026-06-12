@@ -28,9 +28,11 @@ public partial class ExportViewModel : ObservableObject
         if (_data is null) return;
         int total = _data.Demands.Count;
         int ready = _data.Demands.Count(d => d.ImportStatus.Equals("Ready to import", StringComparison.OrdinalIgnoreCase));
+        int blocked = total - ready;
+        int cols = ExportService.ColumnCount(SelectedFormat);
         int willExport = ReadyOnly ? ready : total;
-        Summary = $"Format {SelectedFormat}  •  will export {willExport} of {total} demands"
-                + (ReadyOnly ? $"  (only 'Ready to import' = {ready})" : "");
+        Summary = $"Format {SelectedFormat} ({cols} columns)  •  {total} demands: {ready} ready, {blocked} blocked (errors)"
+                + $"  •  will export {willExport}" + (ReadyOnly ? "  (ready only)" : "");
     }
 
     [RelayCommand]
