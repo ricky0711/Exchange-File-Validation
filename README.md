@@ -19,6 +19,9 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### G — Efficiency pass (background pipeline)
+The compute-heavy pipeline (level assign → property fill → validation → detail-build) now runs on a **background thread** with the busy spinner; only the bound-collection updates happen on the UI thread (the awaited continuation), so the UI never blocks. On **load** the whole pipeline runs in a *single* background pass (load + assign + fill + validate + detail) instead of two hops. **Re-run**, the **Validation/Checklist "Run"** buttons, and **Load 2nd Architecture** all go through the same async path (`MainViewModel.RunPipelineAsync`). Lookups (`SignalByName`) are precomputed once; OtherRequirements is parsed once at load. The 27k-row Reference grid is built once (not on re-validate). *(Profiling against the real ~27k file still needs the runtime + data; the structural wins are in.)*
+
 ### E — Hardened AnalogData parser
 `SignalDataParser` analog key-matching is now a **configurable alias table** (`AnalogKeyAliases`) — alias-equality / prefix / substring, with more aliases (FR/EN: `valeur_min`, `min`, `minimum`, `borne_inf`; `pas`/`step`/`lsb` for resolution; etc.) and the old duplicate `"unit"` check removed. Tune labels in one place if a real Exchange File differs. (LogicalData `[Etat_N: …]` is confirmed and unchanged.) Also marked the per-ISR detail's **Coding/Meaning** rows informational, since logical state-names vs binary coding aren't directly comparable (avoids permanent false-red).
 

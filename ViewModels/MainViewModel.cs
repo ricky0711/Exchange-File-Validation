@@ -34,13 +34,13 @@ public partial class MainViewModel : ObservableObject
 
         Checklist.GetDemands = () => _data?.Demands ?? new List<IsrDemand>();
 
-        Validation.OnRerun = RunValidation;
-        Checklist.OnRerun = RunValidation;
+        Validation.OnRerun = () => _ = RunPipelineAsync(false);
+        Checklist.OnRerun = () => _ = RunPipelineAsync(false);
         Checklist.OnNavigate = NavigateToCheck;
 
         // The Exchange File page now owns level/fill re-run (merged from the old Level + Property Fill pages).
-        ExchangeFile.OnRerun = RunPipeline;
-        ExchangeFile.OnLoadSecondArch = LoadSecondArchitecture;
+        ExchangeFile.OnRerun = () => _ = RunPipelineAsync(true);
+        ExchangeFile.OnLoadSecondArch = () => _ = LoadSecondArchitecture();
     }
 
     public DashboardViewModel Dashboard { get; }
@@ -85,13 +85,47 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand] private void NavExport() { if (IsLoaded) CurrentPage = Export; }
 
     /// <summary>Assign levels → fill properties → validate → refresh every dependent page.</summary>
-    private void RunPipeline()
+    /// <summary>
+    /// Re-run the validation pipeline with the heavy compute (assign / fill / validate / detail-build)
+    /// on a background thread; the awaited continuation resumes on the UI thread to push results to the
+    /// bound collections. <paramref name="assignAndFill"/> = full pipeline (load / Re-run), else validate only.
+    /// </summary>
+    private async Task RunPipelineAsync(bool assignAndFill)
     {
-        if (_data is null) return;
-        _lsvc.Assign(_data.Demands, _data, _secondArch);
-        _fillSvc.Fill(_data.Demands, _data);
-        RunValidation();
-        ExchangeFile.UpdatePipelineSummary(_data);
+        if (_data is null || IsBusy) return;
+        var data = _data;
+        IsBusy = true;
+        Status = assignAndFill ? "Running level + fill + validation…" : "Validating…";
+        try
+        {
+            var summaries = await Task.Run(() =>
+            {
+                if (assignAndFill)
+                {
+                    _lsvc.Assign(data.Demands, data, _secondArch);
+                    _fillSvc.Fill(data.Demands, data);
+                }
+                var s = _vsvc.Validate(data.Demands, data);
+                foreach (var d in data.Demands) _detailSvc.Build(d, data);   // side-by-side ISR vs AT detail
+                return s;
+            });
+
+            // Back on the UI thread: push to the bound pages.
+            Validation.SetData(data);
+            Checklist.SetSummaries(summaries);
+            ExchangeFile.SetData(data);          // rebuild so row severity tints refresh
+            ExchangeFile.UpdatePipelineSummary(data);
+            IsrVsMsgSet.SetData(data);
+            OtherReqCompare.SetData(data);
+            Dashboard.Update(data, summaries);
+            Status = "Validation complete  ✓  " + data.Summary;
+        }
+        catch (Exception ex)
+        {
+            Status = "Validation failed: " + ex.Message;
+            MessageBox.Show(ex.ToString(), "Validation error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally { IsBusy = false; }
     }
 
     /// <summary>Checklist → Validation: filter to the clicked check's rule + worst severity, then switch page.</summary>
@@ -103,21 +137,8 @@ public partial class MainViewModel : ObservableObject
         CurrentPage = Validation;
     }
 
-    private void RunValidation()
-    {
-        if (_data is null) return;
-        var summaries = _vsvc.Validate(_data.Demands, _data);
-        foreach (var d in _data.Demands) _detailSvc.Build(d, _data);   // side-by-side ISR vs AT detail
-        Validation.SetData(_data);
-        Checklist.SetSummaries(summaries);
-        ExchangeFile.SetData(_data);   // rebuild so row severity tints refresh
-        IsrVsMsgSet.SetData(_data);
-        OtherReqCompare.SetData(_data);
-        Dashboard.Update(_data, summaries);
-    }
-
     /// <summary>Pick a 2nd-architecture Message List (resolves Level 2.1 vs 3), then re-run the pipeline.</summary>
-    private void LoadSecondArchitecture()
+    private async Task LoadSecondArchitecture()
     {
         if (_data is null) return;
         var dlg = new OpenFileDialog
@@ -126,11 +147,17 @@ public partial class MainViewModel : ObservableObject
             Title = "Select 2nd architecture Message List (for Level 2.1)"
         };
         if (dlg.ShowDialog() != true) return;
-        var defs = _loader.LoadSignalDefsByName(dlg.FileName);
-        _data.SecondArchByName = defs;
-        _secondArch = new HashSet<string>(defs.Keys, StringComparer.OrdinalIgnoreCase);
-        ExchangeFile.SecondArchName = System.IO.Path.GetFileName(dlg.FileName) + $"  ({defs.Count:N0} signals)";
-        RunPipeline();
+        IsBusy = true;
+        Status = "Loading 2nd architecture…";
+        try
+        {
+            var defs = await Task.Run(() => _loader.LoadSignalDefsByName(dlg.FileName));
+            _data.SecondArchByName = defs;
+            _secondArch = new HashSet<string>(defs.Keys, StringComparer.OrdinalIgnoreCase);
+            ExchangeFile.SecondArchName = System.IO.Path.GetFileName(dlg.FileName) + $"  ({defs.Count:N0} signals)";
+        }
+        finally { IsBusy = false; }
+        await RunPipelineAsync(true);
     }
 
     private static string? Pick(string title, string filter)
@@ -147,19 +174,38 @@ public partial class MainViewModel : ObservableObject
     private async Task LoadAsync()
     {
         IsBusy = true; IsLoaded = false;
-        var progress = new Progress<string>(s => Status = s);
+        IProgress<string> progress = new Progress<string>(s => Status = s);
         try
         {
-            var data = await Task.Run(() => _loader.LoadV2(ExchangeFilePath, MsgSetPath, IsrAppliedPath, progress));
+            // Load + the whole compute pipeline run in a single background pass; UI updates happen after.
+            var (data, summaries) = await Task.Run(() =>
+            {
+                var d = _loader.LoadV2(ExchangeFilePath, MsgSetPath, IsrAppliedPath, progress);
+                var sa = d.SecondArchByName is null ? null
+                    : new HashSet<string>(d.SecondArchByName.Keys, StringComparer.OrdinalIgnoreCase);
+                progress.Report("Assigning levels + filling properties…");
+                _lsvc.Assign(d.Demands, d, sa);
+                _fillSvc.Fill(d.Demands, d);
+                progress.Report("Validating…");
+                var s = _vsvc.Validate(d.Demands, d);
+                foreach (var dem in d.Demands) _detailSvc.Build(dem, d);
+                return (d, s);
+            });
+
             _data = data;
             _secondArch = data.SecondArchByName is null ? null
                 : new HashSet<string>(data.SecondArchByName.Keys, StringComparer.OrdinalIgnoreCase);
+
             ReferenceBrowser.SetData(data);
-            ExchangeFile.SetData(data);      // populate rich grid
+            ExchangeFile.SetData(data);          // populate rich grid
+            ExchangeFile.UpdatePipelineSummary(data);
             Export.SetData(data);
+            Validation.SetData(data);
+            Checklist.SetSummaries(summaries);
             IsrVsMsgSet.SetData(data);
             OtherReqCompare.SetData(data);
-            RunPipeline();                   // level + fill + validate + checklist + dashboard + grid tint
+            Dashboard.Update(data, summaries);
+
             Status = "Loaded ✓  " + data.Summary;
             IsLoaded = true;
             CurrentPage = Dashboard;
