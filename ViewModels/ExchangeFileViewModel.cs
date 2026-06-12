@@ -3,6 +3,7 @@ using System.Linq;
 using System.ComponentModel;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using ExchangeFileValidator.Controls;
 using ExchangeFileValidator.Models;
 using ExchangeFileValidator.Services;
@@ -36,8 +37,29 @@ public partial class ExchangeFileViewModel : ObservableObject
     [ObservableProperty] private string _selectedLevel = "All";
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _summary = "";
+    [ObservableProperty] private string _pipelineSummary = "";
+    [ObservableProperty] private string _secondArchName = "(none)";
     [ObservableProperty] private IsrDemand? _selectedDemand;
     [ObservableProperty] private SignalDef? _atDef;
+
+    /// <summary>Set by MainViewModel: re-assign levels + re-fill properties + re-validate (merged Level/Fill pages).</summary>
+    public Action? OnRerun { get; set; }
+    /// <summary>Set by MainViewModel: pick a 2nd-architecture Message List to resolve Level 2.1.</summary>
+    public Action? OnLoadSecondArch { get; set; }
+
+    [RelayCommand] private void Rerun() => OnRerun?.Invoke();
+    [RelayCommand] private void LoadSecondArch() => OnLoadSecondArch?.Invoke();
+
+    /// <summary>Level distribution + fill status line (the old Level/Fill page summaries, merged here).</summary>
+    public void UpdatePipelineSummary(ReferenceData data)
+    {
+        var lc = LevelAssignmentService.Counts(data.Demands);
+        var fc = PropertyFillService.Counts(data.Demands);
+        PipelineSummary =
+            $"Levels — L0 {lc.L0}  L1 {lc.L1}  L2 {lc.L2}  L2.1 {lc.L21}  L3 {lc.L3}"
+            + (lc.Unassigned > 0 ? $"  (unassigned {lc.Unassigned})" : "")
+            + $"     Fill — {fc.filled} filled  {fc.pending} pending L2.1  {fc.newSig} new";
+    }
 
     partial void OnSelectedDemandChanged(IsrDemand? value)
     {

@@ -17,12 +17,6 @@
         <DataTemplate DataType="{x:Type vm:ReferenceBrowserViewModel}">
             <views:ReferenceBrowserView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:LevelAssignmentViewModel}">
-            <views:LevelAssignmentView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:PropertyFillViewModel}">
-            <views:PropertyFillView />
-        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ExchangeFileViewModel}">
             <views:ExchangeFileView />
         </DataTemplate>
@@ -99,12 +93,6 @@
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavReferenceCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Database24}" />
                     <TextBlock Text="VALIDATION" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />
-                    <ui:Button Content="  Level Assignment" Appearance="Transparent" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavLevelsCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Layer24}" />
-                    <ui:Button Content="  Property Fill" Appearance="Transparent" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavFillCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Edit24}" />
                     <ui:Button Content="  Exchange File" Appearance="Transparent" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExchangeCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />

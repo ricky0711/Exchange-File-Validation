@@ -19,6 +19,12 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### B — Level + Property Fill merged into the Exchange File page
+- The standalone **Level Assignment** and **Property Fill** pages (and their view-models) are **removed**. Their data now lives as columns on the unified Exchange File grid: the **Level chip**, filled **Frame / PDU / Bits**, and **CRC/CLK** (all already present, now the single home for them).
+- Level + fill orchestration moved into `MainViewModel.RunPipeline()` (assign levels → fill → validate → refresh every page); it runs automatically on load.
+- The Exchange File page gains a **Re-run level + fill** action and the relocated **Load 2nd Architecture (L2.1)** action, plus a live **level-distribution + fill-status** summary line (the old page summaries, merged into one bar).
+- Sidebar is shorter: Workspace (Dashboard, Reference Data) → Validation (Exchange File, Validation, Checklist, ISR vs Message Set, Other Requirements, Export).
+
 ## v2 — Step 3 (AT validation corrected + UX)
 - **AT validation reworked** = ISR-online vs Message-Set. The ISR-side properties are now parsed out of **LogicalData / AnalogData**: AnalogData → unit / min / max / resolution; LogicalData → states → size, coding, meaning. Each is compared to the Message-Set definition. (`SignalDataParser`, `PropertyComparisonService`.)
 - **Two sections** in the rail: **ISR vs Message Set** (signal properties) and **Other Requirements** (Tx / Rx / UV / Network Path).

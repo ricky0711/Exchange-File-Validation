@@ -13,15 +13,16 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly ReferenceDataLoader _loader;
     private readonly ValidationService _vsvc = new();
+    private readonly LevelAssignmentService _lsvc = new();
+    private readonly PropertyFillService _fillSvc = new();
     private ReferenceData? _data;
+    private HashSet<string>? _secondArch;
 
     public MainViewModel(ReferenceDataLoader loader)
     {
         _loader = loader;
         Dashboard = new DashboardViewModel();
         ReferenceBrowser = new ReferenceBrowserViewModel();
-        LevelAssignment = new LevelAssignmentViewModel(loader);
-        PropertyFill = new PropertyFillViewModel();
         ExchangeFile = new ExchangeFileViewModel();
         Validation = new ValidationViewModel();
         Checklist = new ChecklistViewModel();
@@ -34,17 +35,14 @@ public partial class MainViewModel : ObservableObject
 
         Validation.OnRerun = RunValidation;
         Checklist.OnRerun = RunValidation;
-        LevelAssignment.OnReferenceDataChanged = () =>
-        {
-            PropertyFill.FillCommand.Execute(null);
-            RunValidation();
-        };
+
+        // The Exchange File page now owns level/fill re-run (merged from the old Level + Property Fill pages).
+        ExchangeFile.OnRerun = RunPipeline;
+        ExchangeFile.OnLoadSecondArch = LoadSecondArchitecture;
     }
 
     public DashboardViewModel Dashboard { get; }
     public ReferenceBrowserViewModel ReferenceBrowser { get; }
-    public LevelAssignmentViewModel LevelAssignment { get; }
-    public PropertyFillViewModel PropertyFill { get; }
     public ExchangeFileViewModel ExchangeFile { get; }
     public ValidationViewModel Validation { get; }
     public ChecklistViewModel Checklist { get; }
@@ -78,12 +76,21 @@ public partial class MainViewModel : ObservableObject
         ApplicationAccentColorManager.Apply(
             (Color)ColorConverter.ConvertFromString("#6D5DF5")!, theme);
     }
-    [RelayCommand] private void NavLevels() { if (IsLoaded) CurrentPage = LevelAssignment; }
-    [RelayCommand] private void NavFill() { if (IsLoaded) CurrentPage = PropertyFill; }
+
     [RelayCommand] private void NavExchange() { if (IsLoaded) CurrentPage = ExchangeFile; }
     [RelayCommand] private void NavValidation() { if (IsLoaded) CurrentPage = Validation; }
     [RelayCommand] private void NavChecklist() { if (IsLoaded) CurrentPage = Checklist; }
     [RelayCommand] private void NavExport() { if (IsLoaded) CurrentPage = Export; }
+
+    /// <summary>Assign levels → fill properties → validate → refresh every dependent page.</summary>
+    private void RunPipeline()
+    {
+        if (_data is null) return;
+        _lsvc.Assign(_data.Demands, _data, _secondArch);
+        _fillSvc.Fill(_data.Demands, _data);
+        RunValidation();
+        ExchangeFile.UpdatePipelineSummary(_data);
+    }
 
     private void RunValidation()
     {
@@ -95,6 +102,23 @@ public partial class MainViewModel : ObservableObject
         IsrVsMsgSet.SetData(_data);
         OtherReqCompare.SetData(_data);
         Dashboard.Update(_data, summaries);
+    }
+
+    /// <summary>Pick a 2nd-architecture Message List (resolves Level 2.1 vs 3), then re-run the pipeline.</summary>
+    private void LoadSecondArchitecture()
+    {
+        if (_data is null) return;
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Message List (*.xlsx)|*.xlsx",
+            Title = "Select 2nd architecture Message List (for Level 2.1)"
+        };
+        if (dlg.ShowDialog() != true) return;
+        var defs = _loader.LoadSignalDefsByName(dlg.FileName);
+        _data.SecondArchByName = defs;
+        _secondArch = new HashSet<string>(defs.Keys, StringComparer.OrdinalIgnoreCase);
+        ExchangeFile.SecondArchName = System.IO.Path.GetFileName(dlg.FileName) + $"  ({defs.Count:N0} signals)";
+        RunPipeline();
     }
 
     private static string? Pick(string title, string filter)
@@ -116,14 +140,14 @@ public partial class MainViewModel : ObservableObject
         {
             var data = await Task.Run(() => _loader.LoadV2(ExchangeFilePath, MsgSetPath, IsrAppliedPath, progress));
             _data = data;
+            _secondArch = data.SecondArchByName is null ? null
+                : new HashSet<string>(data.SecondArchByName.Keys, StringComparer.OrdinalIgnoreCase);
             ReferenceBrowser.SetData(data);
-            LevelAssignment.SetData(data);   // levels
-            PropertyFill.SetData(data);      // fill defs
             ExchangeFile.SetData(data);      // populate rich grid
             Export.SetData(data);
             IsrVsMsgSet.SetData(data);
             OtherReqCompare.SetData(data);
-            RunValidation();                 // validate + checklist + dashboard + grid tint
+            RunPipeline();                   // level + fill + validate + checklist + dashboard + grid tint
             Status = "Loaded ✓  " + data.Summary;
             IsLoaded = true;
             CurrentPage = Dashboard;
