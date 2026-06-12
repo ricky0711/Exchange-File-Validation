@@ -50,11 +50,12 @@ public sealed class IsrDetailBuilder
             sig.EcuTxRx.Where(kv => kv.Value.Contains('R', StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key));
         string isrBits = p.States is int st && st >= 2 ? ((int)Math.Ceiling(Math.Log2(st))).ToString() : "";
 
-        void Row(string prop, string isr, string at)
+        // info=true → shown but never flagged red (text whose ISR/AT forms aren't directly comparable).
+        void Row(string prop, string isr, string at, bool info = false)
         {
             // Skip rows where both sides are blank (nothing to show).
             if (string.IsNullOrWhiteSpace(isr) && string.IsNullOrWhiteSpace(at)) return;
-            detail.Props.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr, at, Same(isr, at)));
+            detail.Props.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr, at, info || Same(isr, at)));
         }
 
         Row("Transmitter (Tx)", Ecu(d.ReqTx.Length > 0 ? d.ReqTx : d.Emitter), atTx.Length > 0 ? atTx : "");
@@ -66,8 +67,8 @@ public sealed class IsrDetailBuilder
         Row("Min", p.Min, sig?.Min ?? "");
         Row("Max", p.Max, sig?.Max ?? "");
         Row("Resolution", p.Resolution, sig?.Resolution ?? "");
-        Row("Coding", p.Coding, sig?.Coding ?? "");
-        Row("Meaning", p.Meaning, sig?.Meaning ?? "");
+        Row("Coding", p.Coding, sig?.Coding ?? "", info: true);     // logical states vs binary coding — not directly comparable
+        Row("Meaning", p.Meaning, sig?.Meaning ?? "", info: true);  // multi-line free text — show, don't flag
         Row("Period", "", sig?.Period ?? "");
         Row("Unavailable value", d.ReqUnavailableValue, "");
         Row("Network path", d.ReqNetworkPath, "");

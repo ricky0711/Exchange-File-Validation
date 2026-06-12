@@ -28,6 +28,29 @@ public sealed class SignalDataParser
     private static string NormKey(string k) =>
         new string((k ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
+    /// <summary>
+    /// Configurable AnalogData key aliases (normalized: lower-case, letters+digits only). Tune here if a
+    /// real Exchange File uses different labels — matching is alias-equality / prefix / substring, so e.g.
+    /// "Valeur_min (Dec)" → "valeurmindec" still resolves to Min. (LogicalData "[Etat_N: …]" is confirmed.)
+    /// </summary>
+    public static readonly (string field, string[] aliases)[] AnalogKeyAliases =
+    {
+        ("unit",       new[] { "unit", "unite", "unity", "unitdec" }),
+        ("min",        new[] { "valeurmin", "valmin", "minimum", "min", "minvalue", "borneinf" }),
+        ("max",        new[] { "valeurmax", "valmax", "maximum", "max", "maxvalue", "bornesup" }),
+        ("resolution", new[] { "resolution", "res", "pas", "step", "quantum", "lsb" }),
+        ("offset",     new[] { "offset", "decalage" }),
+    };
+
+    private static string? MatchField(string normKey)
+    {
+        foreach (var (field, aliases) in AnalogKeyAliases)
+            foreach (var a in aliases)
+                if (normKey == a || normKey.StartsWith(a, StringComparison.Ordinal) || normKey.Contains(a, StringComparison.Ordinal))
+                    return field;
+        return null;
+    }
+
     public Parsed Parse(string logicalData, string analogData)
     {
         var p = new Parsed();
@@ -40,11 +63,14 @@ public sealed class SignalDataParser
             {
                 var key = NormKey(m.Groups[1].Value);
                 var val = m.Groups[2].Value.Trim();
-                if (key is "unit" or "unite" or "unit") p.Unit = val;
-                else if (key.Contains("valeurmin") || key == "min" || key == "minimum") p.Min = val;
-                else if (key.Contains("valeurmax") || key == "max" || key == "maximum") p.Max = val;
-                else if (key.StartsWith("resolution") || key == "res") p.Resolution = val;
-                else if (key.StartsWith("offset")) p.Offset = val;
+                switch (MatchField(key))
+                {
+                    case "unit": p.Unit = val; break;
+                    case "min": p.Min = val; break;
+                    case "max": p.Max = val; break;
+                    case "resolution": p.Resolution = val; break;
+                    case "offset": p.Offset = val; break;
+                }
             }
         }
 

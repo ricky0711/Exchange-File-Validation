@@ -19,6 +19,9 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### E — Hardened AnalogData parser
+`SignalDataParser` analog key-matching is now a **configurable alias table** (`AnalogKeyAliases`) — alias-equality / prefix / substring, with more aliases (FR/EN: `valeur_min`, `min`, `minimum`, `borne_inf`; `pas`/`step`/`lsb` for resolution; etc.) and the old duplicate `"unit"` check removed. Tune labels in one place if a real Exchange File differs. (LogicalData `[Etat_N: …]` is confirmed and unchanged.) Also marked the per-ISR detail's **Coding/Meaning** rows informational, since logical state-names vs binary coding aren't directly comparable (avoids permanent false-red).
+
 ### D — Live checklist that jumps to the findings
 Each checklist row is now a **button**: clicking it opens the **Validation page filtered to that check's rule + worst severity** (e.g. clicking "Duplicate ISR" with errors → Validation filtered to rule *Duplicate ISR*, severity *Error*). Each `CheckSummary` carries the `Rule` string it emits; `ChecklistViewModel.OpenCheck` → `MainViewModel.NavigateToCheck` → `ValidationViewModel.FocusOn(rule, severity)` + page switch. Manual/external/not-run checks aren't navigable. Hover highlight + a "›" affordance signal it's live.
 
