@@ -4,10 +4,12 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:vm="clr-namespace:ExchangeFileValidator.ViewModels"
         xmlns:views="clr-namespace:ExchangeFileValidator.Views"
+        xmlns:controls="clr-namespace:ExchangeFileValidator.Controls"
         Title="Exchange File Validator" Height="780" Width="1240"
         WindowStartupLocation="CenterScreen" ExtendsContentIntoTitleBar="True">
 
     <ui:FluentWindow.Resources>
+        <controls:ActivePageToAppearanceConverter x:Key="ActiveAppearance" />
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
             <views:DashboardView />
         </DataTemplate>
@@ -86,29 +88,29 @@
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                 <StackPanel Margin="12,16">
                     <TextBlock Text="WORKSPACE" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,0,0,6" />
-                    <ui:Button Content="  Dashboard" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Dashboard" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Dashboard}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavDashboardCommand}"
                                Icon="{ui:SymbolIcon Home24}" />
-                    <ui:Button Content="  Reference Data" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Reference Data" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Reference}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavReferenceCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Database24}" />
                     <TextBlock Text="VALIDATION" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />
-                    <ui:Button Content="  Exchange File" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Exchange File" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Exchange}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExchangeCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
-                    <ui:Button Content="  Validation" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Validation" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Validation}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavValidationCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon CheckmarkCircle24}" />
-                    <ui:Button Content="  Checklist" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Checklist" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Checklist}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavChecklistCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Clipboard24}" />
-                    <ui:Button Content="  ISR vs Message Set" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  ISR vs Message Set" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=IsrVsMsgSet}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavIsrVsMsgSetCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowSwap24}" />
-                    <ui:Button Content="  Other Requirements" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Other Requirements" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=OtherReq}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavOtherReqCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon TextBulletListSquare24}" />
-                    <ui:Button Content="  Export" Appearance="Transparent" HorizontalAlignment="Stretch"
+                    <ui:Button Content="  Export" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Export}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExportCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowExport24}" />
                     <TextBlock Text="MORE" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />

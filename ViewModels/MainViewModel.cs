@@ -53,6 +53,7 @@ public partial class MainViewModel : ObservableObject
     public ExportViewModel Export { get; }
 
     [ObservableProperty] private object _currentPage;
+    [ObservableProperty] private string _activePage = "Dashboard";
     [ObservableProperty] private string _exchangeFilePath = "";
     [ObservableProperty] private string _msgSetPath = "";
     [ObservableProperty] private string _isrAppliedPath = "";
@@ -63,10 +64,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private bool _isLoaded;
 
-    [RelayCommand] private void NavDashboard() => CurrentPage = Dashboard;
-    [RelayCommand] private void NavReference() => CurrentPage = ReferenceBrowser;
-    [RelayCommand] private void NavIsrVsMsgSet() { if (IsLoaded) CurrentPage = IsrVsMsgSet; }
-    [RelayCommand] private void NavOtherReq() { if (IsLoaded) CurrentPage = OtherReqCompare; }
+    [RelayCommand] private void NavDashboard() { CurrentPage = Dashboard; ActivePage = "Dashboard"; }
+    [RelayCommand] private void NavReference() { CurrentPage = ReferenceBrowser; ActivePage = "Reference"; }
+    [RelayCommand] private void NavIsrVsMsgSet() { if (IsLoaded) { CurrentPage = IsrVsMsgSet; ActivePage = "IsrVsMsgSet"; } }
+    [RelayCommand] private void NavOtherReq() { if (IsLoaded) { CurrentPage = OtherReqCompare; ActivePage = "OtherReq"; } }
 
     [ObservableProperty] private bool _isDarkTheme = false;
     [RelayCommand]
@@ -79,10 +80,10 @@ public partial class MainViewModel : ObservableObject
             (Color)ColorConverter.ConvertFromString("#6D5DF5")!, theme);
     }
 
-    [RelayCommand] private void NavExchange() { if (IsLoaded) CurrentPage = ExchangeFile; }
-    [RelayCommand] private void NavValidation() { if (IsLoaded) CurrentPage = Validation; }
-    [RelayCommand] private void NavChecklist() { if (IsLoaded) CurrentPage = Checklist; }
-    [RelayCommand] private void NavExport() { if (IsLoaded) CurrentPage = Export; }
+    [RelayCommand] private void NavExchange() { if (IsLoaded) { CurrentPage = ExchangeFile; ActivePage = "Exchange"; } }
+    [RelayCommand] private void NavValidation() { if (IsLoaded) { CurrentPage = Validation; ActivePage = "Validation"; } }
+    [RelayCommand] private void NavChecklist() { if (IsLoaded) { CurrentPage = Checklist; ActivePage = "Checklist"; } }
+    [RelayCommand] private void NavExport() { if (IsLoaded) { CurrentPage = Export; ActivePage = "Export"; } }
 
     /// <summary>Assign levels → fill properties → validate → refresh every dependent page.</summary>
     /// <summary>
@@ -136,6 +137,7 @@ public partial class MainViewModel : ObservableObject
         var severity = check.Errored > 0 ? "Error" : check.Warned > 0 ? "Warning" : "All";
         Validation.FocusOn(check.Rule, severity);
         CurrentPage = Validation;
+        ActivePage = "Validation";
     }
 
     /// <summary>Pick a 2nd-architecture Message List (resolves Level 2.1 vs 3), then re-run the pipeline.</summary>
@@ -210,6 +212,7 @@ public partial class MainViewModel : ObservableObject
             Status = "Loaded ✓  " + data.Summary;
             IsLoaded = true;
             CurrentPage = Dashboard;
+            ActivePage = "Dashboard";
         }
         catch (Exception ex)
         {

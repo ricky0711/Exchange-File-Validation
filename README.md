@@ -27,6 +27,7 @@ A **"Ready to import" gate column** is included; the gate is derived from valida
 **⚠ Provisional** — the exact per-format order/headers and the real gate column still need a real Alliance 270/212 sample; send one and this locks to it exactly.
 
 ### H — Design pass (in progress)
+- **Active-page highlight in the sidebar** — the current page's nav button now renders with a Secondary (filled) appearance via `ActivePageToAppearanceConverter` bound to `MainViewModel.ActivePage`, so it's always clear where you are (incl. when the checklist jumps you to Validation).
 - Added a **shared soft-shadow** resource (`App.xaml` → `SoftShadow`) applied consistently to the card surfaces — dashboard KPI cards, checklist rows, and the per-ISR detail panel — for a lighter, more "instrument-like" depth.
 - All new status colour is theme-safe in **both light and dark**: level/severity/CRC-CLK badges use solid chips with white text; row/mismatch tints and the filter funnel use translucent ARGB so they read on either background.
 - *(I don't have the reference screenshot mentioned in the brief — this pass works from its written description; send the image and I'll tune spacing/colour to match.)*
