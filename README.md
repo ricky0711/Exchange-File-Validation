@@ -9,6 +9,16 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
 
 
+## v2 — Step 4 (polish)
+
+### A — Excel-grade data grids (Reference Data + Exchange File)
+Reusable, page-agnostic grid toolkit under `Controls/`:
+- **Per-column Excel filter** — every column header now carries a funnel button (turns accent-violet when active) opening a popup with a **searchable checkbox list of that column's distinct values**, plus Select-all / Clear / Apply / Clear-filter. Multiple column filters combine with AND, and AND with the global search + the page's status/level filters. (`ColumnFilterState`, `GridFilterController`, `Controls/ColumnFilterHeader.xaml`.)
+- **Dynamic show/hide columns** — a **Columns** button → checklist of every available column. Reference Data exposes all `SignalDef` fields *including the per-ECU T/R node columns* (auto-discovered per file, hidden by default); the Exchange File grid exposes all demand fields (Level, filled Frame/PDU/Bits, CRC/CLK, codes, …).
+- **Sorting** — click any column header to sort (template/chip columns sort via `SortMemberPath`).
+- **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
+- Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
+
 ## v2 — Step 3 (AT validation corrected + UX)
 - **AT validation reworked** = ISR-online vs Message-Set. The ISR-side properties are now parsed out of **LogicalData / AnalogData**: AnalogData → unit / min / max / resolution; LogicalData → states → size, coding, meaning. Each is compared to the Message-Set definition. (`SignalDataParser`, `PropertyComparisonService`.)
 - **Two sections** in the rail: **ISR vs Message Set** (signal properties) and **Other Requirements** (Tx / Rx / UV / Network Path).

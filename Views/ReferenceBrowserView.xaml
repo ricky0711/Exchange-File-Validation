@@ -11,35 +11,52 @@
         <Grid Grid.Row="0" Margin="2,0,2,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="280" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Text="{Binding Counts}" VerticalAlignment="Center" Opacity="0.8" />
-            <ComboBox Grid.Column="1" ItemsSource="{Binding SearchFields}" SelectedItem="{Binding SelectedSearchField}" Margin="0,0,6,0" />
+
+            <!-- Columns show/hide chooser -->
+            <ToggleButton x:Name="ColumnsToggle" Grid.Column="1" Margin="0,0,8,0" Padding="10,6">
+                <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Table24" FontSize="14" Margin="0,0,6,0" />
+                    <TextBlock Text="Columns" />
+                </StackPanel>
+            </ToggleButton>
+            <Popup IsOpen="{Binding IsChecked, ElementName=ColumnsToggle, Mode=TwoWay}" StaysOpen="False"
+                   PlacementTarget="{Binding ElementName=ColumnsToggle}" Placement="Bottom"
+                   AllowsTransparency="True" PopupAnimation="Fade">
+                <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,2,0,0">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.25" />
+                    </Border.Effect>
+                    <ScrollViewer MaxHeight="420" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding ColumnChooser}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Header}" IsChecked="{Binding IsVisible, Mode=TwoWay}" Margin="2,2" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+
             <ui:TextBox Grid.Column="2" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
-                        PlaceholderText="Search…" Icon="{ui:SymbolIcon Search24}" />
+                        PlaceholderText="Search all columns…" Icon="{ui:SymbolIcon Search24}" />
         </Grid>
 
-        <DataGrid Grid.Row="1"
+        <DataGrid x:Name="Grid" Grid.Row="1"
                   ItemsSource="{Binding SignalsView}"
                   AutoGenerateColumns="False" IsReadOnly="True"
+                  CanUserSortColumns="True"
                   EnableRowVirtualization="True" EnableColumnVirtualization="True"
                   VirtualizingPanel.IsVirtualizing="True"
                   VirtualizingPanel.VirtualizationMode="Recycling"
                   ScrollViewer.CanContentScroll="True"
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                  RowHeaderWidth="0" SelectionMode="Single">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Signal" Binding="{Binding SignalName}" Width="240" />
-                <DataGridTextColumn Header="Frame" Binding="{Binding FrameName}" Width="160" />
-                <DataGridTextColumn Header="ID" Binding="{Binding FrameIdHex}" Width="70" />
-                <DataGridTextColumn Header="PDU" Binding="{Binding PduName}" Width="160" />
-                <DataGridTextColumn Header="Bits" Binding="{Binding SignalSizeBits}" Width="55" />
-                <DataGridTextColumn Header="Type" Binding="{Binding ValueType}" Width="90" />
-                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="70" />
-                <DataGridTextColumn Header="Min" Binding="{Binding Min}" Width="70" />
-                <DataGridTextColumn Header="Max" Binding="{Binding Max}" Width="70" />
-            </DataGrid.Columns>
-        </DataGrid>
+                  RowHeaderWidth="0" SelectionMode="Single" />
     </Grid>
 </UserControl>

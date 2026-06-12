@@ -3,6 +3,7 @@ using System.Linq;
 using System.ComponentModel;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
+using ExchangeFileValidator.Controls;
 using ExchangeFileValidator.Models;
 using ExchangeFileValidator.Services;
 
@@ -16,18 +17,23 @@ public partial class ExchangeFileViewModel : ObservableObject
     {
         DemandsView = CollectionViewSource.GetDefaultView(Demands);
         DemandsView.Filter = Filter;
+        Controller.FilterChanged += UpdateSummary;
+        ColumnSpecs = BuildSpecs();
     }
 
     public ObservableCollection<IsrDemand> Demands { get; } = new();
     public ICollectionView DemandsView { get; }
 
+    /// <summary>Excel-grade per-column filtering for the Exchange File grid.</summary>
+    public GridFilterController Controller { get; } = new();
+    public ObservableCollection<ColumnVisibility> ColumnChooser { get; } = new();
+    public List<ColumnSpec> ColumnSpecs { get; }
+
     public string[] StatusFilters { get; } = { "All", "Clean", "Warning", "Error" };
     public string[] LevelFilters { get; } = { "All", "L0", "L1", "L2", "L2.1", "L3" };
-    public string[] SearchFields { get; } = { "All", "Signal", "ISR", "Frame", "Tx", "Rx" };
 
     [ObservableProperty] private string _selectedStatus = "All";
     [ObservableProperty] private string _selectedLevel = "All";
-    [ObservableProperty] private string _selectedSearchField = "All";
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private string _summary = "";
     [ObservableProperty] private IsrDemand? _selectedDemand;
@@ -47,10 +53,35 @@ public partial class ExchangeFileViewModel : ObservableObject
         _data = data;
         Demands.Clear();
         foreach (var d in data.Demands) Demands.Add(d);
+        Controller.SetSource(data.Demands, DemandsView);
         Refresh(data);
     }
 
     public void Refresh(ReferenceData data) { DemandsView.Refresh(); UpdateSummary(); }
+
+    private static List<ColumnSpec> BuildSpecs()
+    {
+        string S(object o, Func<IsrDemand, string> f) => o is IsrDemand d ? f(d) : "";
+        return new List<ColumnSpec>
+        {
+            new() { Header = "Lvl", BindingPath = nameof(IsrDemand.Level), Width = 60, Filterable = false, CellTemplateKey = "LevelChipCell", Accessor = o => S(o, x => x.LevelLabel) },
+            new() { Header = "ISR Number", BindingPath = nameof(IsrDemand.IsrNumber), Width = 130, Accessor = o => S(o, x => x.IsrNumber) },
+            new() { Header = "Feature", BindingPath = nameof(IsrDemand.FeatureNumber), Width = 100, VisibleByDefault = false, Accessor = o => S(o, x => x.FeatureNumber) },
+            new() { Header = "EmCode", BindingPath = nameof(IsrDemand.EmitterCode), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.EmitterCode) },
+            new() { Header = "Emitter", BindingPath = nameof(IsrDemand.Emitter), Width = 110, Accessor = o => S(o, x => x.Emitter) },
+            new() { Header = "RxCode", BindingPath = nameof(IsrDemand.ReceiverCode), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.ReceiverCode) },
+            new() { Header = "Receiver", BindingPath = nameof(IsrDemand.Receiver), Width = 110, Accessor = o => S(o, x => x.Receiver) },
+            new() { Header = "Signal (Proposal)", BindingPath = nameof(IsrDemand.ParameterProposal), Width = 220, Accessor = o => S(o, x => x.ParameterProposal) },
+            new() { Header = "Frame", BindingPath = nameof(IsrDemand.FilledFrame), Width = 150, Accessor = o => S(o, x => x.FilledFrame) },
+            new() { Header = "PDU", BindingPath = nameof(IsrDemand.FilledPdu), Width = 150, Accessor = o => S(o, x => x.FilledPdu) },
+            new() { Header = "Bits", BindingPath = nameof(IsrDemand.FilledBits), Width = 55, Accessor = o => S(o, x => x.FilledBits?.ToString() ?? "") },
+            new() { Header = "CRC/CLK", BindingPath = nameof(IsrDemand.CrcClk), Width = 80, Accessor = o => S(o, x => x.CrcClk) },
+            new() { Header = "Media", BindingPath = nameof(IsrDemand.MediaType), Width = 90, VisibleByDefault = false, Accessor = o => S(o, x => x.MediaType) },
+            new() { Header = "Net", BindingPath = nameof(IsrDemand.NetworkType), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.NetworkType) },
+            new() { Header = "UpdateTime", BindingPath = nameof(IsrDemand.UpdateTime), Width = 100, Accessor = o => S(o, x => x.UpdateTime) },
+            new() { Header = "Issues", BindingPath = nameof(IsrDemand.Issues), Star = true, Width = 360, Accessor = o => S(o, x => x.Issues) },
+        };
+    }
 
     private void UpdateSummary()
     {
@@ -73,20 +104,15 @@ public partial class ExchangeFileViewModel : ObservableObject
         };
         if (!statusOk) return false;
         if (SelectedLevel != "All" && d.LevelLabel != SelectedLevel) return false;
+        if (!Controller.Pass(obj)) return false;
         if (string.IsNullOrWhiteSpace(Search)) return true;
         var q = Search.Trim();
-        bool In(string f) => (f ?? "").Contains(q, StringComparison.OrdinalIgnoreCase);
-        return SelectedSearchField switch
-        {
-            "Signal" => In(d.ParameterProposal), "ISR" => In(d.IsrNumber),
-            "Frame" => In(string.IsNullOrEmpty(d.FilledFrame) ? d.Frame : d.FilledFrame),
-            "Tx" => In(d.Emitter), "Rx" => In(d.Receiver),
-            _ => In(d.ParameterProposal) || In(d.IsrNumber) || In(d.Emitter) || In(d.Receiver),
-        };
+        foreach (var spec in ColumnSpecs)
+            if (spec.Accessor(obj).Contains(q, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     partial void OnSelectedStatusChanged(string value) { DemandsView.Refresh(); UpdateSummary(); }
     partial void OnSelectedLevelChanged(string value) { DemandsView.Refresh(); UpdateSummary(); }
-    partial void OnSelectedSearchFieldChanged(string value) { DemandsView.Refresh(); UpdateSummary(); }
     partial void OnSearchChanged(string value) { DemandsView.Refresh(); UpdateSummary(); }
 }
