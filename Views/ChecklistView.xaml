@@ -50,7 +50,7 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Card" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                        CornerRadius="6" Padding="14,10" Margin="0,3">
+                                        CornerRadius="6" Padding="14,10" Margin="0,3" Effect="{StaticResource SoftShadow}">
                                     <ContentPresenter />
                                 </Border>
                                 <ControlTemplate.Triggers>

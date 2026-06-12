@@ -19,6 +19,11 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### H — Design pass (in progress)
+- Added a **shared soft-shadow** resource (`App.xaml` → `SoftShadow`) applied consistently to the card surfaces — dashboard KPI cards, checklist rows, and the per-ISR detail panel — for a lighter, more "instrument-like" depth.
+- All new status colour is theme-safe in **both light and dark**: level/severity/CRC-CLK badges use solid chips with white text; row/mismatch tints and the filter funnel use translucent ARGB so they read on either background.
+- *(I don't have the reference screenshot mentioned in the brief — this pass works from its written description; send the image and I'll tune spacing/colour to match.)*
+
 ### G — Efficiency pass (background pipeline)
 The compute-heavy pipeline (level assign → property fill → validation → detail-build) now runs on a **background thread** with the busy spinner; only the bound-collection updates happen on the UI thread (the awaited continuation), so the UI never blocks. On **load** the whole pipeline runs in a *single* background pass (load + assign + fill + validate + detail) instead of two hops. **Re-run**, the **Validation/Checklist "Run"** buttons, and **Load 2nd Architecture** all go through the same async path (`MainViewModel.RunPipelineAsync`). Lookups (`SignalByName`) are precomputed once; OtherRequirements is parsed once at load. The 27k-row Reference grid is built once (not on re-validate). *(Profiling against the real ~27k file still needs the runtime + data; the structural wins are in.)*
 

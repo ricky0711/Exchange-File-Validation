@@ -9,6 +9,9 @@
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
             <BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <!-- Shared soft shadow for card surfaces (consistent depth across pages, reads in light + dark) -->
+            <DropShadowEffect x:Key="SoftShadow" BlurRadius="16" ShadowDepth="2" Direction="270"
+                              Opacity="0.16" Color="#000000" RenderingBias="Quality" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
