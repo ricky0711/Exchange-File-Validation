@@ -80,7 +80,7 @@ public sealed class ValidationService
                 d.Results.Add(new ValidationResult("Empty field", Severity.Error, "Empty: " + string.Join(", ", missing)));
             }
         }
-        return Sum("Basic check", "Empty mandatory fields", demands.Count, err, 0);
+        return Sum("Basic check", "Empty mandatory fields", demands.Count, err, 0, "Empty field");
     }
 
     private CheckSummary CheckLogicalAnalogExclusive(IReadOnlyList<IsrDemand> demands)
@@ -92,7 +92,7 @@ public sealed class ValidationService
                 err++;
                 d.Results.Add(new ValidationResult("Logical/Analog", Severity.Error, "Logical and Analog data both present (mutually exclusive)."));
             }
-        return Sum("Basic check", "Logical / Analog exclusivity", demands.Count, err, 0);
+        return Sum("Basic check", "Logical / Analog exclusivity", demands.Count, err, 0, "Logical/Analog");
     }
 
     private static CheckSummary LevelSummary(IReadOnlyList<IsrDemand> demands)
@@ -112,7 +112,7 @@ public sealed class ValidationService
                 err++;
                 d.Results.Add(new ValidationResult("Duplicate ISR", Severity.Error, $"ISR n appears on {g.Count()} rows."));
             }
-        return Sum("Main validation", "Duplicate ISR", demands.Count, err, 0);
+        return Sum("Main validation", "Duplicate ISR", demands.Count, err, 0, "Duplicate ISR");
     }
 
     private CheckSummary CheckSignalInAt(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -133,7 +133,7 @@ public sealed class ValidationService
                 if (inAt) { warn++; d.Results.Add(new ValidationResult("Signal in AT", Severity.Warning, "L3 (new) but signal already exists in Message List.")); }
             }
         }
-        return Sum("Main validation", "Signal present in AT", checkedN, err, warn);
+        return Sum("Main validation", "Signal present in AT", checkedN, err, warn, "Signal in AT");
     }
 
     private CheckSummary CheckSignalNameCase(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -152,7 +152,7 @@ public sealed class ValidationService
                     $"Case mismatch: '{d.ParameterProposal}' vs Message List '{sig.SignalName}'."));
             }
         }
-        return Sum("Main validation", "Signal name case-exact (L1/2/2.1)", checkedN, err, 0);
+        return Sum("Main validation", "Signal name case-exact (L1/2/2.1)", checkedN, err, 0, "Signal name case");
     }
 
     private CheckSummary CheckCoding(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -173,7 +173,7 @@ public sealed class ValidationService
                     $"{bits}-bit signal has {actual} meaning lines (expected {expected})."));
             }
         }
-        return Sum("Main validation", "Coding / meaning vs bit-size", checkedN, 0, warn);
+        return Sum("Main validation", "Coding / meaning vs bit-size", checkedN, 0, warn, "Coding/bit-size");
     }
 
     private CheckSummary CheckAnalogBits(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -196,7 +196,7 @@ public sealed class ValidationService
                     $"Analog needs {required} bits for range/resolution (defined {bits})."));
             }
         }
-        return Sum("Main validation", "Analog signal bit-size (L3)", checkedN, 0, warn);
+        return Sum("Main validation", "Analog signal bit-size (L3)", checkedN, 0, warn, "Analog bit-size");
     }
 
     private CheckSummary CheckMagicSignals(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -222,7 +222,7 @@ public sealed class ValidationService
                     $"{p.Pattern} profile mismatch: {string.Join("; ", bad)}."));
             }
         }
-        return Sum("Main validation", "Special-signal profiles (DTOOL/WakeUp/SIGMA...)", checkedN, err, 0);
+        return Sum("Main validation", "Special-signal profiles (DTOOL/WakeUp/SIGMA...)", checkedN, err, 0, "Magic signal");
     }
 
     private CheckSummary CheckUpdateTimeAll(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -241,7 +241,7 @@ public sealed class ValidationService
                     $"UpdateTime '{d.UpdateTime}' inconsistent with period '{period}' / excl '{excl}'."));
             }
         }
-        return Sum("Main validation", "Update-time rule", checkedN, 0, warn);
+        return Sum("Main validation", "Update-time rule", checkedN, 0, warn, "Update time");
     }
 
     private CheckSummary CheckDico(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -251,7 +251,7 @@ public sealed class ValidationService
         foreach (var e in data.Dico) byName[e.Name] = e.Code;
         int checkedN = 0, err = 0, warn = 0;
         foreach (var d in demands) { Verify(d, d.Emitter, d.EmitterCode, "Emitter"); Verify(d, d.Receiver, d.ReceiverCode, "Receiver"); }
-        return Sum("Basic check", "ECU code (Dico)", checkedN, err, warn);
+        return Sum("Basic check", "ECU code (Dico)", checkedN, err, warn, "ECU code (Dico)");
 
         void Verify(IsrDemand d, string nm, string code, string role)
         {
@@ -281,7 +281,7 @@ public sealed class ValidationService
                     "Leading/trailing space in: " + string.Join(", ", bad)));
             }
         }
-        return Sum("Basic check", "Leading/trailing whitespace", demands.Count, 0, err);
+        return Sum("Basic check", "Leading/trailing whitespace", demands.Count, 0, err, "Whitespace");
     }
 
     // Checklist "Multisender Check for Level 2": adding a new Tx to an existing signal.
@@ -303,7 +303,7 @@ public sealed class ValidationService
                     $"New transmitter '{d.Emitter}' - existing: {string.Join(", ", txs)}. Multisender review needed."));
             }
         }
-        return Sum("Level", "Multisender check (L2)", checkedN, 0, warn);
+        return Sum("Level", "Multisender check (L2)", checkedN, 0, warn, "Multisender (L2)");
     }
 
     // FindRxandTx equivalent: does a Network Path route exist for this PDU/frame + Tx + Rx?
@@ -331,7 +331,7 @@ public sealed class ValidationService
                     $"No Network Path entry for {pdu ?? frame}: {d.Emitter} -> {d.Receiver}. New routing may be needed."));
             }
         }
-        return Sum("Main validation", "Network route (Tx->Rx path)", checkedN, 0, warn);
+        return Sum("Main validation", "Network route (Tx->Rx path)", checkedN, 0, warn, "Network route");
     }
 
     // L3 digital: count Etat_ states in LogicalData -> required bits (info for definition work).
@@ -348,7 +348,7 @@ public sealed class ValidationService
             d.Results.Add(new ValidationResult("L3 digital sizing", Severity.Info,
                 $"{states} logical states -> needs {bits}-bit signal (+1 state margin if unavailable value required)."));
         }
-        return Sum("Main validation", "L3 digital signal sizing", checkedN, 0, 0);
+        return Sum("Main validation", "L3 digital signal sizing", checkedN, 0, 0, "L3 digital sizing");
     }
 
     // Point 17 — OtherRequirements (Tx/Rx/UV) must agree with the ISR + signal properties.
@@ -379,7 +379,7 @@ public sealed class ValidationService
                 { warn++; d.Results.Add(new ValidationResult("Other Req", Severity.Warning, $"UnavailableValue '{uv}' should be binary (0b) for a {bits}-bit signal.")); }
             }
         }
-        return Sum("Main validation", "Other Requirements (Tx/Rx/UV)", checkedN, err, warn);
+        return Sum("Main validation", "Other Requirements (Tx/Rx/UV)", checkedN, err, warn, "Other Req");
     }
 
     private static readonly Dictionary<string, string> EcuMap = new(StringComparer.OrdinalIgnoreCase)
@@ -388,9 +388,9 @@ public sealed class ValidationService
 
     private static bool Eq(string a, string b) => (a ?? "").Trim().Equals((b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
 
-    private static CheckSummary Sum(string sec, string name, int checkedN, int err, int warn) => new()
+    private static CheckSummary Sum(string sec, string name, int checkedN, int err, int warn, string rule = "") => new()
     {
-        Section = sec, Name = name, Kind = "Tool", Ran = true,
+        Section = sec, Name = name, Rule = rule, Kind = "Tool", Ran = true,
         Checked = checkedN, Passed = Math.Max(0, checkedN - err - warn), Warned = warn, Errored = err
     };
 

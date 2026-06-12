@@ -25,6 +25,15 @@ public partial class ChecklistViewModel : ObservableObject
     public Action? OnRerun { get; set; }
     /// <summary>Set by MainViewModel; provides demands for the report export.</summary>
     public Func<IReadOnlyList<IsrDemand>>? GetDemands { get; set; }
+    /// <summary>Set by MainViewModel; jumps to the Validation page filtered to this check's findings.</summary>
+    public Action<CheckSummary>? OnNavigate { get; set; }
+
+    [RelayCommand]
+    private void OpenCheck(CheckSummary? item)
+    {
+        if (item is null || !item.Ran || string.IsNullOrEmpty(item.Rule)) return;
+        OnNavigate?.Invoke(item);
+    }
 
     [ObservableProperty] private string _summary = "Load data to run the checklist.";
 

@@ -62,6 +62,16 @@ public partial class ValidationViewModel : ObservableObject
 
     [RelayCommand] private void Run() => OnRerun?.Invoke();
 
+    /// <summary>Focus the grid on one rule + severity (used by the checklist "jump to findings").</summary>
+    public void FocusOn(string rule, string severity)
+    {
+        Search = "";
+        SelectedSeverity = SeverityFilters.Contains(severity) ? severity : "All";
+        SelectedRule = RuleFilters.Contains(rule) ? rule : "All";
+        RowsView.Refresh();
+        UpdateSummary();
+    }
+
     private bool Filter(object obj)
     {
         if (obj is not ValidationRow r) return false;

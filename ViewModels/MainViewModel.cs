@@ -36,6 +36,7 @@ public partial class MainViewModel : ObservableObject
 
         Validation.OnRerun = RunValidation;
         Checklist.OnRerun = RunValidation;
+        Checklist.OnNavigate = NavigateToCheck;
 
         // The Exchange File page now owns level/fill re-run (merged from the old Level + Property Fill pages).
         ExchangeFile.OnRerun = RunPipeline;
@@ -91,6 +92,15 @@ public partial class MainViewModel : ObservableObject
         _fillSvc.Fill(_data.Demands, _data);
         RunValidation();
         ExchangeFile.UpdatePipelineSummary(_data);
+    }
+
+    /// <summary>Checklist → Validation: filter to the clicked check's rule + worst severity, then switch page.</summary>
+    private void NavigateToCheck(CheckSummary check)
+    {
+        if (!IsLoaded) return;
+        var severity = check.Errored > 0 ? "Error" : check.Warned > 0 ? "Warning" : "All";
+        Validation.FocusOn(check.Rule, severity);
+        CurrentPage = Validation;
     }
 
     private void RunValidation()

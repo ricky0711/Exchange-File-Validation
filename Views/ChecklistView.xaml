@@ -42,13 +42,31 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                            CornerRadius="6" Padding="14,10" Margin="0,3">
+                    <!-- Whole row is a button: clicking jumps to the Validation page filtered to this check -->
+                    <Button Cursor="Hand" HorizontalContentAlignment="Stretch"
+                            Command="{Binding DataContext.OpenCheckCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Open the matching findings on the Validation page">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Card" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                        CornerRadius="6" Padding="14,10" Margin="0,3">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Card" Property="Background"
+                                                Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="16" />
                             </Grid.ColumnDefinitions>
                             <Border Grid.Column="0" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center"
                                     Background="{Binding Status, Converter={StaticResource StatusToBrush}}">
@@ -60,8 +78,10 @@
                             </StackPanel>
                             <TextBlock Grid.Column="2" Text="{Binding Result}" VerticalAlignment="Center"
                                        HorizontalAlignment="Right" Opacity="0.8" FontSize="12" />
+                            <TextBlock Grid.Column="3" Text="›" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                       Opacity="0.35" FontSize="16" Margin="4,0,0,0" />
                         </Grid>
-                    </Border>
+                    </Button>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

@@ -197,6 +197,8 @@ public sealed class CheckSummary
 {
     public string Section { get; init; } = "";
     public string Name { get; init; } = "";
+    /// <summary>The ValidationResult.Rule this check emits, so the checklist can jump to its findings.</summary>
+    public string Rule { get; init; } = "";
     public string Kind { get; init; } = "Tool";     // "Tool" | "Manual" | "External"
     public bool Ran { get; init; }
     public int Checked { get; init; }

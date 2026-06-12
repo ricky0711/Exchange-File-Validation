@@ -19,6 +19,9 @@ Reusable, page-agnostic grid toolkit under `Controls/`:
 - **Virtualization intact** — distinct values are computed **lazily** (only when a popup opens) and **capped** (2 000 per column) so the 27k-row grid stays responsive; the global search box replaces the old single search-scope dropdown.
 - Columns are built programmatically (`ExcelGridBuilder`) from declarative `ColumnSpec`s the view-models own — needed because Reference Data's ECU columns vary per file.
 
+### D — Live checklist that jumps to the findings
+Each checklist row is now a **button**: clicking it opens the **Validation page filtered to that check's rule + worst severity** (e.g. clicking "Duplicate ISR" with errors → Validation filtered to rule *Duplicate ISR*, severity *Error*). Each `CheckSummary` carries the `Rule` string it emits; `ChecklistViewModel.OpenCheck` → `MainViewModel.NavigateToCheck` → `ValidationViewModel.FocusOn(rule, severity)` + page switch. Manual/external/not-run checks aren't navigable. Hover highlight + a "›" affordance signal it's live.
+
 ### C — Expandable per-ISR detail (replaces the static side card)
 Selecting an ISR row now expands an inline **full-detail panel** (`DataGrid.RowDetailsTemplate`, `RowDetailsVisibilityMode=VisibleWhenSelected`) showing:
 - A **side-by-side ISR(online) vs AT(Message Set) comparison table** — Tx/Rx, Frame, PDU, Size, Unit, Min, Max, Resolution, Coding, Meaning, Period, Unavailable value, Network path, Change-mgmt n°. **Mismatched rows are tinted red** (blank-tolerant, numeric-aware match, mirroring `PropertyComparisonService.Same`).
