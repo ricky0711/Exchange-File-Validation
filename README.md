@@ -1,0 +1,136 @@
+# Exchange File Validator — v2 (step 3) (.NET 10 / VS 2026)
+
+Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List. Full pipeline: **load → level assignment → property fill → validation → export.** Left rail switches pages; each phase is usable on its own.
+
+## Run it
+1. Open `ExchangeFileValidator.csproj` in Visual Studio 2026 (or `dotnet build`). Needs the **.NET 10 SDK**.
+2. Restore NuGet packages (WPF-UI 4.3.0, CommunityToolkit.Mvvm 8.4.0, ClosedXML 0.105.0).
+3. F5. Click **Browse** for the Message List (.xlsx) and the Exchange File (.xlsm), then **Load**.
+4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
+
+
+## v2 — Step 3 (AT validation corrected + UX)
+- **AT validation reworked** = ISR-online vs Message-Set. The ISR-side properties are now parsed out of **LogicalData / AnalogData**: AnalogData → unit / min / max / resolution; LogicalData → states → size, coding, meaning. Each is compared to the Message-Set definition. (`SignalDataParser`, `PropertyComparisonService`.)
+- **Two sections** in the rail: **ISR vs Message Set** (signal properties) and **Other Requirements** (Tx / Rx / UV / Network Path).
+- **Per-ISR notes** — select a row on the Exchange File page → editable note in the detail panel (replaces the global notes page).
+- **Light/Dark fixed** — default light; row/severity tints are now translucent so they read correctly in both themes.
+- **Filtered counts** — the count line on Reference Data, Exchange File, Validation and the compare pages now reflects the *filtered* rows, not the totals.
+- **Colour** — dashboard KPI cards now have coloured accents (blue / violet / teal / amber / green-red status) toward the reference look.
+
+## v2 — Step 2
+
+## v2 — Step 2 (OtherRequirements + ISR vs Message Set)
+- **OtherRequirements parsed** from the demand cell (`Tx:`, `Rx:`, `NetworkPath:`, `UnavailableValue:`, `ChangeManagementNumber:` — tolerant of newlines / ';' / "1. 2." numbering).
+- **#17 Other Requirements check:** Tx must equal Emitter, Rx must equal Receiver (ECU names normalized), and UnavailableValue format checked (hex 0x for >4-bit, binary 0b otherwise). Findings appear inline + on the checklist.
+- **#16 ISR vs Message Set** (new left-rail section, under Validation): compares ISR-declared properties (Tx/Rx/size/unavailable-value from the demand + OtherRequirements) against the Message-Set definition, row per property with Match/Mismatch chips. "Show mismatches only" toggle.
+
+### Still queued (the big UI step)
+Merge Level + Fill into the Exchange File page; click an ISR → expandable side detail (ISR vs AT side by side); CRC/CLK shown distinctly; results inline; dynamic show/hide columns + Excel-style filter/sort/multi-select on Reference Data and Exchange File; live checklist that jumps to issues.
+
+## v2 — Step 1 (foundation)
+- **Three separate inputs** now: Exchange File (demands), Msg-Set/PDU (Message List + Network Path + Dico), and a standalone ISR-Applied file. Same headers, just separate files. `LoadV2` in ReferenceDataLoader.
+- **Architecture selector** in the load bar (C1A / C1A-HS / C1A-HS evo / N FACE).
+- **Notes** page — free-text working notes for the session.
+- **ISR Status Diff removed.**
+- **Cleaner dashboard** (KPI strip), **grouped sidebar** (Workspace / Validation / More), and **light theme by default** to match the requested look (toggle still there).
+
+### Coming in the next steps (sequenced)
+- Merge Level + Property Fill into the Exchange File page; click an ISR -> expandable side detail (ISR vs AT side by side), CRC/CLK shown distinctly, results inline.
+- Reference Data + Exchange File: dynamic show/hide columns, Excel-style per-column filter + sort, multi-select search results.
+- Live checklist that redirects to the matching issues.
+- New section: ISR-online vs Msg-Set signal-property mismatch.
+- Other Requirements check (Tx / Rx / Unavailable-Value matching).
+
+## Earlier — full suite
+
+## Earlier — full suite NEW in this build — automation of remaining manual steps + design upgrade
+
+**Automated (was manual):**
+- **ECU-name replace (FACE)** — PIU_Mst→PIU_MASTER, PIU_Hood→PIU_HOOD, PIU_Sub→PIU_SUB applied automatically at load; shown as a completed Tool step on the checklist.
+- **Multisender check (L2)** — uses the Message List's per-ECU T/R node columns (now auto-detected and loaded) to flag L2 demands whose new transmitter differs from the signal's existing transmitters.
+- **Network route check (FindRxandTx)** — verifies each demand's PDU/frame + Tx→Rx pair exists in the Network Path sheet; flags routes that may need creation.
+- **Tx/Rx-aware CRC/CLK decision (AddISRClockAndCRC)** — an existing CRC/Clock is "reusable" only if its node columns show T at the demand's emitter and R at the receiver; otherwise "new CRC/Clock may be needed". See the CRC-CLK note per row.
+- **Whitespace check** + **L3 digital sizing** (Etat_N count → required bits).
+- **ISR Status Diff (Phase 5 / Process macro)** — new page: pick an external ISR-Status export; it matches by ISR number and diffs AnalogData (Valeur_min/max) and LogicalData (Etat_N) token-by-token, plus presence mismatches both ways.
+
+**Design / UX:**
+- **Dashboard** landing page with KPI cards (demands, level distribution, clean/warning/error, fill status, checks passed, reference sizes) and a one-line verdict.
+- **ISR vs AT compare panel** (UF_CompareISRandAT equivalent) — select any row on the Exchange File page to see the request vs the AT definition (frame/PDU/bits/coding/meaning/period) plus all findings for that row, side by side.
+- **Light/Dark theme toggle** (left rail, keeps the indigo accent).
+- **Export Report** button on the Checklist page — writes a 3-sheet workbook (Checklist with status colours, Findings, Demands overview).
+
+**Still manual (genuinely not automatable from these files):** preparing the Exchange File itself, the L2.1 frame-props/bit-byte cross-check (needs both architectures' layout columns), the external AT-validation tool run, and the 2-reviewer Other-Requirements check. These stay listed on the checklist so nothing silently disappears.
+
+
+## Earlier: full ExchangeFileValidation_C1AHS + Validation Points checklist
+The validation suite now covers the macro **and** the "Validation Points" checklist:
+
+Tool checks (run automatically, shown as findings + on the Checklist dashboard):
+- Empty mandatory fields · Logical/Analog mutual-exclusivity · Duplicate ISR · Signal present in AT · **Signal-name case-exact (L1/2/2.1)** · Coding/meaning vs bit-size · **Analog signal bit-size** (= ROUNDUP(LOG2((Max−Min)/Res+1))) · **Special-signal profiles** · **Update-time rule** (4 scenarios, Module7) · ECU code (Dico).
+- **Special-signal profiles** = the ~770-line block of ExchangeFileValidation_C1AHS, now data-driven: DTOOL/FTOOL (64-bit diagnostic), WakeUpType (3-bit 0b111), WakeUp_Signal (16-bit 0x83C0), WakeUpSleepCommand (2-bit 0b11), SIGMA_DTC (24-bit), ReadMeReq — each checked for size/coding/transmission/period/meaning.
+
+### NEW page — Checklist
+A dashboard listing every validation step grouped by section (Basic check / Level / Main validation), each with a Pass/Warning/Error/Manual chip and an "x/y ok" result. Manual + external steps from the checklist (prepare file, ECU-name replace, L2.1 bit-byte cross-check, ISR-Online tool, Other-Requirements 2-reviewer) are listed too so the picture is complete.
+
+### NEW page — Exchange File
+A wide, Exchange-File-style grid of all demands (codes, ECUs, signal, filled frame/PDU/bits, CRC/CLK, update-time, issues) with **rows tinted red/amber by worst finding** — the clean equivalent of the macro's cell highlighting. Filter by status (Clean/Warning/Error), level, and scoped search.
+
+### Still deferred (honest list — need external input or more column mapping)
+- **`Process` — ISR Status import + Analog/Logical diff** (Phase 5): needs the *external* ISR-status export file. Not built yet.
+- **`FindRxandTx`** routing resolution via Network Path (data is loaded; logic pending).
+- Magic-signal **sub-column** checks (byte/bit-position cols 47–51/61/62): need your column-mapping confirmation; I check size/coding/transmission/period/meaning, which are the substantive ones.
+- L3 **digital** states-vs-bits precise check (the analog one is in).
+
+## Phase 4 — Export (212 / 270) (new)
+- Generates the Alliance import sheet via ClosedXML. Pick format (270 / 212), optionally export only rows marked "Ready to import".
+- Forces text format on Feature_Number / EmitterCode / ReceiverCode (leading zeros survive). Suggested filename `Preevision_ISR_Import_<fmt>_C1AHS_dd_mm_yyyy.xlsx`.
+- ⚠ Confirm-later: we don't yet carry the macro's "Import 270 = Ready to import" gate column, and the exact 212-vs-270 column difference. The current column set is a sensible superset — send me a real Alliance export and I'll lock the exact layout per format. `Services/ExportService.cs`.
+
+## Phase 3 — Property Fill + CLK/CRC (new)
+- For each demand, looks up its signal in the Message List (or the 2nd architecture for L2.1) and fills Frame, Frame ID, PDU, Bits, Value Type, Unit, Min, Max.
+- Reports whether the target frame already carries a **CRC** / **Clock** signal, and notes when one may be newly required.
+- Status filter (Filled / Pending L2.1 / New), scoped search, live counts.
+- The **Load 2nd Architecture** button on the Level page now loads *full defs* and automatically re-runs level + fill + validation.
+- ⚠ Confirm-later: the macro's full CRC/CLK *need* decision is Tx/Rx-aware and uses the Message List's per-ECU T/R columns, which we don't load yet. Phase 3 reports frame-level CRC/CLK presence; wiring the ECU columns upgrades it to the full decision. `Services/PropertyFillService.cs`.
+
+## Phase 2 — Validation Suite (new)
+Runs automatically after level assignment on load (re-run with **Run Validation**). Findings show as a filterable report — one row per finding with a severity chip, the rule, ISR, signal and message.
+
+Rules implemented:
+- **Duplicate ISR** — same ISR n° on more than one demand row (Error).
+- **Signal in AT** — L0/L1/L2 signals must exist in the Message List; an L3 (new) signal that already exists is flagged (Error / Warning).
+- **ECU code (Dico)** — Emitter/Receiver name must resolve to the code on the row via the Dico sheet (Error if mismatch, Warning if name missing).
+- **Coding / bit-size** — an N-bit signal should have 2^N meaning lines (Warning). *Note: can be chatty if your Message List only documents used values rather than all codes — filter it out or we can tune the rule.*
+
+Filters: severity, rule, plus scoped search (All / Signal / ISR / Rule / Message). Summary shows error/warning counts and how many demands are clean.
+
+The validation engine is pure passes over the models, so each rule is unit-testable. More rules (update-time, name/definition consistency, Rx/Tx routing) slot into `Services/ValidationService.cs`.
+
+## Phase 1 — Level Assignment (new)
+- Loads the incoming ISR demands from the main **ExchangeFile** sheet.
+- Auto-classifies every demand **L0 / L1 / L2 / L2.1 / L3** on load (re-run with **Assign Levels**):
+  - L0 = ISR n° already in ISR-applied · L1 = Signal+Tx+Rx match · L2 = Signal+Tx match · L2.1 = signal in a 2nd architecture's Message List · L3 = new.
+- **Load 2nd Architecture (L2.1)** button: pick another arch's Message List to resolve 2.1 vs 3.
+- Colour-coded level chips, per-row "Basis" note, level filter + search, live counts summary.
+- Left-rail now switches pages (Reference Data ↔ Level Assignment) via a ContentControl + DataTemplates — phases 2–5 slot in the same way.
+
+### ⚠ Verify the match fields (only you can confirm this)
+Level matching maps `demand.ParameterProposal → applied.Parameter`, `demand.Emitter → applied.Transmitter`, `demand.Receiver → applied.Receiver`. If your ISR-applied sheet actually keys off the PREEvision Tx/Rx columns or ECU **codes** (via Dico) instead of names, fix it in one place: `Services/LevelAssignmentService.cs` (the `Key(...)` calls). Test against a handful of ISRs whose level you already know.
+
+## What's working
+- **Header-mapped loaders** (`Services/ReferenceDataLoader.cs`) — read by column *name*, not index, so they survive column reordering. Handles multi-line headers like `Signal Size\n(Bits)`. Loads: Message List signals, ISR-applied, Dico, Network Path.
+- **Async load** off the UI thread with progress text; `.xlsm` opens fine (macros ignored).
+- **Models** (`Models/Models.cs`) — `SignalDef`, `IsrDemand`, `AppliedIsr`, `EcuDicoEntry`, `NetworkRoute`, plus the `IsrLevel` enum and `ValidationResult` record the later phases consume.
+- **Virtualized DataGrid** + live `ICollectionView` filter.
+- Indigo/violet accent (`#6D5DF5`) + dark theme.
+
+## Next phases (already modelled for)
+- **Phase 1 — Level assignment:** `AppliedIsr.SignalTxRxKey` / `SignalTxKey` are the match keys for L1/L2; L0 = ISR-number hit; L2.1 = second-architecture lookup; L3 = none.
+- **Phase 2 — Validation suite:** results land in `IsrDemand.Results` as `{Rule, Severity, Message}`.
+- Phases 3–5 per the spec doc.
+
+## Caveats (I couldn't compile here — no Windows/.NET runtime in my sandbox)
+- **Targets `net10.0-windows`** with current stable packages (WPF-UI 4.3.0). The accent call uses positional args for the WPF-UI 4.x signature (already applied).
+- **Icon names** (`Database24`, `Layer24`, etc.) are Fluent `SymbolRegular` values — if one doesn't resolve, swap for a neighbour in IntelliSense.
+- Remove the `<ApplicationIcon>` line in the csproj until you add `Assets/app.ico`.
+- ClosedXML loads the whole workbook into memory; the 35 MB .xlsm + 21 MB .xlsx are fine, but first load takes a few seconds — that's why it's async with progress.

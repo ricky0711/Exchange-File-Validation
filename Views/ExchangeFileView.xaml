@@ -1,0 +1,129 @@
+<UserControl x:Class="ExchangeFileValidator.Views.ExchangeFileView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:ExchangeFileValidator.Views">
+    <UserControl.Resources>
+        <views:LevelToBrushConverter x:Key="LevelToBrush" />
+        <views:WorstSeverityToRowBrushConverter x:Key="RowTint" />
+    </UserControl.Resources>
+
+    <Grid Margin="24,8,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="300" />
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="90" />
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="240" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding Summary}" VerticalAlignment="Center" Opacity="0.85" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding SelectedStatus}" Margin="0,0,6,0" />
+            <ComboBox Grid.Column="2" ItemsSource="{Binding LevelFilters}" SelectedItem="{Binding SelectedLevel}" Margin="0,0,6,0" />
+            <ComboBox Grid.Column="3" ItemsSource="{Binding SearchFields}" SelectedItem="{Binding SelectedSearchField}" Margin="0,0,6,0" />
+            <ui:TextBox Grid.Column="4" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                        PlaceholderText="Search…" Icon="{ui:SymbolIcon Search24}" />
+        </Grid>
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding DemandsView}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  ScrollViewer.CanContentScroll="True"
+                  GridLinesVisibility="All" HeadersVisibility="Column"
+                  RowHeaderWidth="0" SelectionMode="Single" ColumnWidth="Auto"
+                  SelectedItem="{Binding SelectedDemand}">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Background" Value="{Binding WorstSeverity, Converter={StaticResource RowTint}}" />
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Lvl" Width="56">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
+                                    Background="{Binding Level, Converter={StaticResource LevelToBrush}}">
+                                <TextBlock Text="{Binding LevelLabel}" Foreground="White" FontWeight="SemiBold" FontSize="11" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="ISR Number" Binding="{Binding IsrNumber}" />
+                <DataGridTextColumn Header="Feature" Binding="{Binding FeatureNumber}" />
+                <DataGridTextColumn Header="EmCode" Binding="{Binding EmitterCode}" />
+                <DataGridTextColumn Header="Emitter" Binding="{Binding Emitter}" />
+                <DataGridTextColumn Header="RxCode" Binding="{Binding ReceiverCode}" />
+                <DataGridTextColumn Header="Receiver" Binding="{Binding Receiver}" />
+                <DataGridTextColumn Header="Signal (Proposal)" Binding="{Binding ParameterProposal}" />
+                <DataGridTextColumn Header="Frame" Binding="{Binding FilledFrame}" />
+                <DataGridTextColumn Header="PDU" Binding="{Binding FilledPdu}" />
+                <DataGridTextColumn Header="Bits" Binding="{Binding FilledBits}" />
+                <DataGridTextColumn Header="CRC/CLK" Binding="{Binding CrcClk}" />
+                <DataGridTextColumn Header="Media" Binding="{Binding MediaType}" />
+                <DataGridTextColumn Header="Net" Binding="{Binding NetworkType}" />
+                <DataGridTextColumn Header="UpdateTime" Binding="{Binding UpdateTime}" />
+                <DataGridTextColumn Header="Issues" Binding="{Binding Issues}" Width="360" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- ISR vs AT compare panel (UF_CompareISRandAT equivalent) -->
+        <ui:Card Grid.Row="1" Grid.Column="1" Margin="12,0,0,0" Padding="14">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="ISR vs AT" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding SelectedDemand.ParameterProposal, FallbackValue=Select a row}"
+                               FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,10" />
+
+                    <TextBlock Text="REQUEST (ISR)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9"
+                               Text="{Binding SelectedDemand.Route, FallbackValue=-}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9"
+                               Text="{Binding SelectedDemand.UpdateTime, StringFormat='UpdateTime: {0}', FallbackValue=-}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9" MaxHeight="120"
+                               Text="{Binding SelectedDemand.LogicalData, StringFormat='Logical: {0}', FallbackValue=-}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.9" MaxHeight="120"
+                               Text="{Binding SelectedDemand.AnalogData, StringFormat='Analog: {0}', FallbackValue=-}" />
+
+                    <Separator Margin="0,10" />
+                    <TextBlock Text="AT DEFINITION (Message List)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.FrameName, StringFormat='Frame: {0}', FallbackValue=Not in AT}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.PduName, StringFormat='PDU: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.SignalSizeBits, StringFormat='Bits: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.TransmissionType, StringFormat='Tx type: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.Period, StringFormat='Period: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.Min, StringFormat='Min: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" Text="{Binding AtDef.Max, StringFormat='Max: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" MaxHeight="100"
+                               Text="{Binding AtDef.Coding, StringFormat='Coding: {0}', FallbackValue=''}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" MaxHeight="160" Opacity="0.85"
+                               Text="{Binding AtDef.Meaning, StringFormat='Meaning: {0}', FallbackValue=''}" />
+
+                    <Separator Margin="0,10" />
+                    <TextBlock Text="FINDINGS" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap"
+                               Text="{Binding SelectedDemand.Issues, FallbackValue=-}" />
+                    <TextBlock FontSize="11" TextWrapping="Wrap" Opacity="0.8" Margin="0,6,0,0"
+                               Text="{Binding SelectedDemand.CrcNote, FallbackValue=''}" />
+
+                    <Separator Margin="0,10" />
+                    <TextBlock Text="NOTE (this ISR)" Opacity="0.5" FontSize="10" Margin="0,0,0,4" />
+                    <ui:TextBox Text="{Binding SelectedDemand.Note, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                                PlaceholderText="Add a note for this ISR…" />
+                </StackPanel>
+            </ScrollViewer>
+        </ui:Card>
+    </Grid>
+</UserControl>

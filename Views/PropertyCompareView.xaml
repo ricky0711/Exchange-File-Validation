@@ -1,0 +1,54 @@
+<UserControl x:Class="ExchangeFileValidator.Views.PropertyCompareView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:ExchangeFileValidator.Views">
+    <UserControl.Resources>
+        <views:MatchToBrushConverter x:Key="MatchToBrush" />
+    </UserControl.Resources>
+    <Grid Margin="24,12,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,16,0" />
+            <CheckBox Content="Show mismatches only" IsChecked="{Binding MismatchesOnly}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="2,0,2,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="280" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="{Binding Summary}" VerticalAlignment="Center" Opacity="0.85" />
+            <ui:TextBox Grid.Column="1" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"
+                        PlaceholderText="Search ISR / signal / property…" Icon="{ui:SymbolIcon Search24}" />
+        </Grid>
+
+        <DataGrid Grid.Row="2" ItemsSource="{Binding RowsView}"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  EnableRowVirtualization="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column" RowHeaderWidth="0">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Status" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="4" Padding="8,2" HorizontalAlignment="Left"
+                                    Background="{Binding Match, Converter={StaticResource MatchToBrush}}">
+                                <TextBlock Text="{Binding Status}" Foreground="White" FontWeight="SemiBold" FontSize="11" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="ISR" Binding="{Binding Isr}" Width="130" />
+                <DataGridTextColumn Header="Signal" Binding="{Binding Signal}" Width="220" />
+                <DataGridTextColumn Header="Property" Binding="{Binding Property}" Width="150" />
+                <DataGridTextColumn Header="ISR value" Binding="{Binding IsrValue}" Width="180" />
+                <DataGridTextColumn Header="Message Set value" Binding="{Binding MsgSetValue}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

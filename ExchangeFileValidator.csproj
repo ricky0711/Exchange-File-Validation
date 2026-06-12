@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>ExchangeFileValidator</AssemblyName>
+    <RootNamespace>ExchangeFileValidator</RootNamespace>
+    <!-- Add when you have an icon: <ApplicationIcon>Assets\app.ico</ApplicationIcon> -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UI: Fluent / WinUI 3 look -->
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <!-- MVVM source generators ([ObservableProperty], [RelayCommand]) -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- Excel loading (read-only into models; no Excel automation) -->
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+  </ItemGroup>
+
+</Project>

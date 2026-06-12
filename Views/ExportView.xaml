@@ -1,0 +1,25 @@
+<UserControl x:Class="ExchangeFileValidator.Views.ExportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Grid Margin="24,16,24,16">
+        <ui:Card Padding="24" VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="560">
+            <StackPanel>
+                <TextBlock Text="Export Alliance Import File" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <TextBlock Text="Generates the Preevision ISR import sheet (212 / 270)." Opacity="0.7" Margin="0,0,0,16" />
+
+                <TextBlock Text="Format" Opacity="0.8" Margin="0,0,0,4" />
+                <ComboBox Width="160" HorizontalAlignment="Left" ItemsSource="{Binding Formats}"
+                          SelectedItem="{Binding SelectedFormat}" Margin="0,0,0,14" />
+
+                <CheckBox Content="Export only rows marked 'Ready to import'"
+                          IsChecked="{Binding ReadyOnly}" Margin="0,0,0,16" />
+
+                <TextBlock Text="{Binding Summary}" Opacity="0.85" TextWrapping="Wrap" Margin="0,0,0,18" />
+
+                <ui:Button Content="Export…" Appearance="Primary" Command="{Binding ExportCommand}"
+                           Icon="{ui:SymbolIcon ArrowExport24}" HorizontalAlignment="Left" />
+            </StackPanel>
+        </ui:Card>
+    </Grid>
+</UserControl>
