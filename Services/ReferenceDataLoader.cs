@@ -87,6 +87,30 @@ public sealed class ReferenceData
     /// <summary>Optional second-architecture signal defs (for Level 2.1 + fill). Set when the user loads one.</summary>
     public Dictionary<string, SignalDef>? SecondArchByName { get; set; }
 
+    /// <summary>ECU → its home channel segment(s), derived from Network Path (Part C same-channel rule).</summary>
+    public Dictionary<string, HashSet<string>> EcuChannels { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Home channel(s) of a transmitter = the segments common to ALL of its transmit routes.</summary>
+    public void IndexChannels()
+    {
+        EcuChannels.Clear();
+        foreach (var g in Routes.Where(r => r.Transmitter.Trim().Length > 0)
+                                .GroupBy(r => r.Transmitter.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            HashSet<string>? common = null;
+            foreach (var route in g)
+            {
+                if (common is null) common = new HashSet<string>(route.Segments, StringComparer.OrdinalIgnoreCase);
+                else common.IntersectWith(route.Segments);
+            }
+            EcuChannels[g.Key] = common ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>The home channel(s) of an ECU, or empty if unknown.</summary>
+    public HashSet<string> ChannelsOf(string ecu)
+        => EcuChannels.TryGetValue((ecu ?? "").Trim(), out var s) ? s : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     public string Summary =>
         $"Signals: {Signals.Count:N0} ({SignalByName.Count:N0} distinct, {SignalMappingsByName.Count(kv => kv.Value.Count > 1):N0} multi-frame) | "
         + $"Demands: {Demands.Count:N0} | Applied ISRs: {AppliedIsrs.Count:N0} | Dico: {Dico.Count:N0} | Routes: {Routes.Count:N0}";
@@ -244,21 +268,38 @@ public sealed class ReferenceDataLoader
         var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Network Path"));
         var list = new List<NetworkRoute>();
         if (ws is null) return list;
-        var m = new ColumnMap(ws.Row(1));
+        var header = ws.Row(1);
+        var m = new ColumnMap(header);
         int cPdu = m.Col("PDU Name"), cFrame = m.Col("Frame Name"), cTx = m.Col("Transmitter");
         int cRx = m.Col("Receiver"), cSyn = m.Col("Synthesis");
+
+        // Per-segment 'x' columns = every other header between the keys and Synthesis.
+        var known = new HashSet<int> { cPdu, cFrame, cTx, cRx, cSyn };
+        var segCols = new List<(int col, string name)>();
+        int lastCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
+        for (int c = 1; c <= lastCol; c++)
+        {
+            if (known.Contains(c)) continue;
+            var hname = ColumnMap.Norm(header.Cell(c).GetString());
+            if (hname.Length > 0) segCols.Add((c, hname));
+        }
+
         int last = ws.LastRowUsed()?.RowNumber() ?? 1;
         for (int r = 2; r <= last; r++)
         {
             var row = ws.Row(r);
             var pdu = m.Get(row, cPdu);
             if (pdu.Length == 0) continue;
-            list.Add(new NetworkRoute
+            var route = new NetworkRoute
             {
                 PduName = pdu, FrameName = m.Get(row, cFrame),
                 Transmitter = m.Get(row, cTx), Receiver = m.Get(row, cRx),
                 SynthesisPath = m.Get(row, cSyn),
-            });
+            };
+            foreach (var (col, name) in segCols)
+                if (row.Cell(col).GetString().Trim().Equals("x", StringComparison.OrdinalIgnoreCase))
+                    route.Segments.Add(name);
+            list.Add(route);
         }
         return list;
     }
@@ -385,6 +426,7 @@ public sealed class ReferenceDataLoader
             data.Containers.AddRange(LoadContainers(msg));// Construction of Container frame (assembly layer)
             data.IndexContainers();
         }
+        data.IndexChannels();   // ECU → home channel, from Network Path segments
 
         progress?.Report("Loading ISR-Applied…");
         using (var appliedWb = new XLWorkbook(isrAppliedPath))

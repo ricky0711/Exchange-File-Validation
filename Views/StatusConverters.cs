@@ -48,6 +48,14 @@ public sealed class MatchToBrushConverter : IValueConverter
     private static SolidColorBrush New(string h) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); b.Freeze(); return b; }
 }
 
+/// <summary>IsrLevel.Level3 -> Visible (the L3-only customer frame-assignment input), else Collapsed.</summary>
+public sealed class Level3ToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type t, object? p, CultureInfo c)
+        => value is IsrLevel.Level3 ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+}
+
 /// <summary>null -> Visible (used to show a "clean / none" placeholder), non-null -> Collapsed.</summary>
 public sealed class NullToVisibleConverter : IValueConverter
 {

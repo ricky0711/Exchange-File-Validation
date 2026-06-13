@@ -42,9 +42,11 @@ public sealed class ValidationService
             CheckUpdateTimeAll(demands, data),
             CheckWhitespace(demands),
             CheckMultisender(demands, data),
+            CheckNewTxChannel(demands, data),
             CheckNetworkRoute(demands, data),
             CheckL3DigitalStates(demands),
             CheckOtherRequirements(demands, data),
+            CheckL3FrameAssignment(demands),   // runs last: inspects the other findings
             AutoDone("Basic check", "Replace ECU names (FACE): PIU_Mst->PIU_MASTER etc.", demands.Count),
             // manual / external checklist steps that remain
             Manual("Preparation", "Prepare Exchange File + copy msg-set sheets + AEEA name"),
@@ -321,6 +323,73 @@ public sealed class ValidationService
             }
         }
         return Sum("Level", "Multisender check (L2)", checkedN, 0, warn, "Multisender (L2)");
+    }
+
+    // Part C: an L2 demand adding a NEW transmitter is only allowed if the new Tx is on the SAME channel
+    // as the existing transmitter(s). Channel derived from Network Path (cross-ref ISR-Applied via Msg-List Tx).
+    private CheckSummary CheckNewTxChannel(IReadOnlyList<IsrDemand> demands, ReferenceData data)
+    {
+        int checkedN = 0, err = 0, warn = 0;
+        foreach (var d in demands)
+        {
+            if (d.Level != IsrLevel.Level2) continue;
+            var sig = d.MatchedDef; if (sig is null) continue;
+            var emitter = (d.Emitter ?? "").Trim();
+            if (emitter.Length == 0) continue;
+            var existingTxs = sig.Transmitters.ToList();
+            if (existingTxs.Count == 0) continue;                       // who transmits today is unknown
+            if (existingTxs.Any(t => t.Equals(emitter, StringComparison.OrdinalIgnoreCase))) continue;  // new-Rx, not new-Tx
+
+            checkedN++;
+            var newCh = data.ChannelsOf(emitter);
+            var existCh = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var t in existingTxs) existCh.UnionWith(data.ChannelsOf(t));
+
+            if (newCh.Count == 0 || existCh.Count == 0)
+            {
+                warn++;
+                d.Results.Add(new ValidationResult("New Tx channel", Severity.Warning,
+                    $"New Tx '{emitter}' — channel unknown (no Network-Path entry); same-channel rule could not be verified."));
+            }
+            else if (!newCh.Overlaps(existCh))
+            {
+                err++;
+                d.Results.Add(new ValidationResult("New Tx channel", Severity.Error,
+                    $"New Tx '{emitter}' on channel [{string.Join("/", newCh)}] differs from existing Tx channel [{string.Join("/", existCh)}] — not permitted."));
+            }
+            // else: same channel → allowed (no finding)
+        }
+        return Sum("Level", "L2 new-Tx same-channel rule", checkedN, err, warn, "New Tx channel");
+    }
+
+    // Part C: L3 (new signal) needs the customer to assign a frame first — gate it (after properties are validated).
+    private CheckSummary CheckL3FrameAssignment(IReadOnlyList<IsrDemand> demands)
+    {
+        int checkedN = 0, err = 0, warn = 0;
+        foreach (var d in demands)
+        {
+            if (d.Level != IsrLevel.Level3) continue;
+            checkedN++;
+            bool propertyErrors = d.Results.Any(r => r.Rule != "Level" && r.Severity == Severity.Error);
+            if (propertyErrors)
+            {
+                warn++;
+                d.Results.Add(new ValidationResult("L3 frame", Severity.Warning,
+                    "Blocked — fix the signal's property errors before frame assignment."));
+            }
+            else if (string.IsNullOrWhiteSpace(d.AssignedFrame))
+            {
+                err++;
+                d.Results.Add(new ValidationResult("L3 frame", Severity.Error,
+                    "Properties OK — awaiting customer frame assignment (set 'Assigned frame'). Tool will not auto-assign."));
+            }
+            else
+            {
+                d.Results.Add(new ValidationResult("L3 frame", Severity.Info,
+                    $"Customer frame assigned: '{d.AssignedFrame}'. Proceed to container decision + create transmissions."));
+            }
+        }
+        return Sum("Level", "L3 frame assignment (customer)", checkedN, err, warn, "L3 frame");
     }
 
     // FindRxandTx equivalent: does a Network Path route exist for this PDU/frame + Tx + Rx?

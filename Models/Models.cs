@@ -115,6 +115,9 @@ public sealed class NetworkRoute
     public string Transmitter { get; set; } = "";
     public string Receiver { get; set; } = "";
     public string SynthesisPath { get; set; } = "";   // e.g. "ACU => V1-CAN => PIU"
+
+    /// <summary>Per-segment 'x' columns (CH1-CAN, CH1-FD, ITS1-6-FD, PT-FD, V1-CAN, …) marked on this route.</summary>
+    public HashSet<string> Segments { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public enum IsrLevel { Unassigned, Level0, Level1, Level2, Level2_1, Level3 }

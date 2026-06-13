@@ -21,6 +21,11 @@ A FACE signal gets one Message-List row **per frame it is mapped into** (~36% ma
 ### Part B — Three-sheet trace model (content → packing → routing)
 The Message List (signal layer), **Construction of Container frame** (assembly layer) and Network Path (routing layer) are one layered model. New `ContainerFrame` model + loader (`LoadContainers`, header on **row 4**, indexed by Contained I-PDU and frame name — assumed to live in the Msg-Set workbook alongside Dico/Network-Path). New **`FrameTraceService`** resolves, per demand, the chain **signal → I-PDU (+byte/bit) → container frame (original ECU vs gateway Tx, MAC/secured) → Network-Path synthesis route**, and flags whether the route crosses the CGW/PIU. It's shown in the per-ISR expand panel as a colour-coded **TRACE** strip (Signal / Container / Route chips). Route resolution already matches on both the original ECU and the container gateway transmitter (feeds Part E).
 
+### Part C — ISR level rules (authoritative)
+- **Level refinement:** L2 now distinguishes **new-Rx** ("signal + Tx applied, adds a new Rx") from **new-Tx** ("signal exists in the Message List but this Tx/Rx isn't applied yet"). A signal that exists in the AT is no longer mis-classified as L3 — **L3 is reserved for genuinely new signals**. L0 / L2.1 unchanged.
+- **Same-channel rule (new Tx):** Network-Path **segment columns** are now loaded and an **ECU→home-channel** index is derived (home channel = segments common to all of an ECU's transmit routes). New check **`New Tx channel`**: a new Tx on a **different channel** than the existing Tx ⇒ **error** ("not permitted"); same channel ⇒ allowed; channel unknown ⇒ **warning**.
+- **L3 frame-assignment gate (sequenced):** new check **`L3 frame`** — if the L3 signal has property **errors** → "blocked, fix properties first"; once properties pass but **no customer frame** is assigned → **error** "awaiting customer frame assignment" (the tool never auto-assigns); once the customer sets a frame → info "proceed". A per-demand **Assigned frame (customer)** input appears in the L3 detail panel; Re-run re-gates.
+
 ## v2 — Step 4 (polish)
 
 ### A — Excel-grade data grids (Reference Data + Exchange File)

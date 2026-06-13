@@ -10,6 +10,7 @@
         <views:CrcStateToBrushConverter x:Key="CrcStateToBrush" />
         <views:SeverityToBrushConverter x:Key="SeverityToBrush" />
         <views:NullToVisibleConverter x:Key="NullToVisible" />
+        <views:Level3ToVisibilityConverter x:Key="Level3ToVis" />
         <views:TraceLayerToBrushConverter x:Key="TraceLayerToBrush" />
     </UserControl.Resources>
 
@@ -220,6 +221,15 @@
                                 </ItemsControl>
                                 <TextBlock Text="No findings — clean." FontSize="11" Opacity="0.5" Margin="0,2"
                                            Visibility="{Binding WorstSeverity, Converter={StaticResource NullToVisible}}" />
+
+                                <!-- L3 only: customer frame assignment (gates signal/transmission creation) -->
+                                <StackPanel Visibility="{Binding Level, Converter={StaticResource Level3ToVis}}">
+                                    <Separator Margin="0,10" />
+                                    <TextBlock Text="ASSIGNED FRAME (CUSTOMER — L3)" Opacity="0.5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                    <ui:TextBox Text="{Binding AssignedFrame, UpdateSourceTrigger=LostFocus, Mode=TwoWay}"
+                                                PlaceholderText="new frame name, or an existing frame…" />
+                                    <TextBlock Text="Then click 'Re-run level + fill' to re-gate." Opacity="0.5" FontSize="10" Margin="0,3,0,0" />
+                                </StackPanel>
 
                                 <Separator Margin="0,10" />
                                 <TextBlock Text="NOTE (this ISR)" Opacity="0.5" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,4" />

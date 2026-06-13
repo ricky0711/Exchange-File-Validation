@@ -47,7 +47,12 @@ public sealed class LevelAssignmentService
             }
             else if (l2.Contains(Key(d.ParameterProposal, d.Emitter)))
             {
-                Set(d, IsrLevel.Level2, "Signal + Tx matched (Rx differs).");
+                Set(d, IsrLevel.Level2, "L2 (new Rx) — signal + Tx already applied, request adds a new Rx.");
+            }
+            else if (data.SignalByName.ContainsKey((d.ParameterProposal ?? "").Trim()))
+            {
+                // Signal exists in the AT but this Tx/Rx is not yet applied ⇒ still L2 (new Tx and/or Rx).
+                Set(d, IsrLevel.Level2, "L2 (new Tx) — signal exists in Message List; this Tx/Rx not yet applied (new Tx ⇒ verify same-channel rule).");
             }
             else if (secondArchSignals is not null && secondArchSignals.Contains(d.ParameterProposal))
             {
