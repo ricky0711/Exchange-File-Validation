@@ -62,6 +62,28 @@ public sealed class ReferenceData
     public List<NetworkRoute> Routes { get; } = new();
     public List<IsrDemand> Demands { get; } = new();
 
+    /// <summary>Container frames from "Construction of Container frame" (assembly layer).</summary>
+    public List<ContainerFrame> Containers { get; } = new();
+    /// <summary>Container frames indexed by Contained I-PDU name (the signal-layer join key).</summary>
+    public Dictionary<string, List<ContainerFrame>> ContainersByPdu { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Container frames indexed by frame name.</summary>
+    public Dictionary<string, ContainerFrame> ContainersByFrame { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void IndexContainers()
+    {
+        ContainersByPdu.Clear();
+        ContainersByFrame.Clear();
+        foreach (var c in Containers)
+        {
+            if (c.ContainedPdu.Length > 0)
+            {
+                if (!ContainersByPdu.TryGetValue(c.ContainedPdu, out var l)) ContainersByPdu[c.ContainedPdu] = l = new();
+                l.Add(c);
+            }
+            if (c.FrameName.Length > 0) ContainersByFrame.TryAdd(c.FrameName, c);
+        }
+    }
+
     /// <summary>Optional second-architecture signal defs (for Level 2.1 + fill). Set when the user loads one.</summary>
     public Dictionary<string, SignalDef>? SecondArchByName { get; set; }
 
@@ -241,6 +263,47 @@ public sealed class ReferenceDataLoader
         return list;
     }
 
+    /// <summary>Load the "Construction of Container frame" assembly layer (header is on row 4 in the FACE workbook).</summary>
+    public List<ContainerFrame> LoadContainers(IXLWorkbook wb)
+    {
+        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Construction"))
+              ?? wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Container frame"));
+        var list = new List<ContainerFrame>();
+        if (ws is null) return list;
+
+        int headerRow = 4;                                  // FACE layout
+        var m = new ColumnMap(ws.Row(headerRow));
+        if (m.Col("frame name", "Frame Name") == 0) { headerRow = 1; m = new ColumnMap(ws.Row(1)); }
+
+        int cName = m.Col("frame name", "Frame Name"), cId = m.Col("ID", "Frame ID"), cType = m.Col("Frame Type");
+        int cTx = m.Col("Tx unit"), cMac = m.Col("MAC"), cTt = m.Col("Transmission Type");
+        int cPer = m.Col("Period"), cExcl = m.Col("Excl. Time", "Excl Time");
+        int cOrigId = m.Col("original ID"), cPdu = m.Col("Contained I-PDU name", "Contained I-PDU Name");
+        int cOrigLen = m.Col("original Length"), cOrigTt = m.Col("original TransmissionT", "original Transmission Type");
+        int cOrigPer = m.Col("original Period"), cOrigExcl = m.Col("original Excl. Time", "original Excl Time");
+        int cOrigTx = m.Col("original Tx unit");
+
+        int last = ws.LastRowUsed()?.RowNumber() ?? headerRow;
+        for (int r = headerRow + 1; r <= last; r++)
+        {
+            var row = ws.Row(r);
+            var name = m.Get(row, cName);
+            var pdu = m.Get(row, cPdu);
+            if (name.Length == 0 && pdu.Length == 0) continue;
+            list.Add(new ContainerFrame
+            {
+                FrameName = name, FrameId = m.Get(row, cId), FrameType = m.Get(row, cType),
+                TxUnit = m.Get(row, cTx), Mac = m.Get(row, cMac), TransmissionType = m.Get(row, cTt),
+                Period = m.Get(row, cPer), ExclTime = m.Get(row, cExcl),
+                OriginalId = m.Get(row, cOrigId), ContainedPdu = pdu,
+                OriginalLength = m.Get(row, cOrigLen), OriginalTransmissionType = m.Get(row, cOrigTt),
+                OriginalPeriod = m.Get(row, cOrigPer), OriginalExclTime = m.Get(row, cOrigExcl),
+                OriginalTxUnit = m.Get(row, cOrigTx),
+            });
+        }
+        return list;
+    }
+
     /// <summary>FACE checklist step: replace ECU names to match the msg set.</summary>
     private static readonly Dictionary<string, string> EcuNameMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -317,8 +380,10 @@ public sealed class ReferenceDataLoader
 
         using (var msg = new XLWorkbook(msgSetPath))
         {
-            data.Dico.AddRange(LoadDico(msg));        // Dico ships with the msg set
-            data.Routes.AddRange(LoadRoutes(msg));    // Network Path ships with the msg set
+            data.Dico.AddRange(LoadDico(msg));            // Dico ships with the msg set
+            data.Routes.AddRange(LoadRoutes(msg));        // Network Path ships with the msg set
+            data.Containers.AddRange(LoadContainers(msg));// Construction of Container frame (assembly layer)
+            data.IndexContainers();
         }
 
         progress?.Report("Loading ISR-Applied…");

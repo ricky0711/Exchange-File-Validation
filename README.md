@@ -18,6 +18,9 @@ A FACE signal gets one Message-List row **per frame it is mapped into** (~36% ma
 - **Multiplicity surfaced** — a new `Frame multiplicity` check emits an info finding ("signal maps into N frames: … — matched →X") instead of guessing silently. The load status line reports distinct + multi-frame counts (verify nothing's lost).
 - Reference grid gains Frame Container / Byte Pos / Bit Pos columns (hidden by default).
 
+### Part B — Three-sheet trace model (content → packing → routing)
+The Message List (signal layer), **Construction of Container frame** (assembly layer) and Network Path (routing layer) are one layered model. New `ContainerFrame` model + loader (`LoadContainers`, header on **row 4**, indexed by Contained I-PDU and frame name — assumed to live in the Msg-Set workbook alongside Dico/Network-Path). New **`FrameTraceService`** resolves, per demand, the chain **signal → I-PDU (+byte/bit) → container frame (original ECU vs gateway Tx, MAC/secured) → Network-Path synthesis route**, and flags whether the route crosses the CGW/PIU. It's shown in the per-ISR expand panel as a colour-coded **TRACE** strip (Signal / Container / Route chips). Route resolution already matches on both the original ECU and the container gateway transmitter (feeds Part E).
+
 ## v2 — Step 4 (polish)
 
 ### A — Excel-grade data grids (Reference Data + Exchange File)

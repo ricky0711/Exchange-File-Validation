@@ -17,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     private readonly FrameMatchService _matcher = new();
     private readonly PropertyFillService _fillSvc = new();
     private readonly IsrDetailBuilder _detailSvc = new();
+    private readonly FrameTraceService _traceSvc = new();
     private ReferenceData? _data;
     private HashSet<string>? _secondArch;
 
@@ -106,7 +107,7 @@ public partial class MainViewModel : ObservableObject
                 _matcher.Apply(data.Demands, data);             // resolve the correct frame instance per demand
                 if (assignAndFill) _fillSvc.Fill(data.Demands, data);
                 var s = _vsvc.Validate(data.Demands, data);
-                foreach (var d in data.Demands) _detailSvc.Build(d, data);   // side-by-side ISR vs AT detail
+                foreach (var d in data.Demands) { _detailSvc.Build(d, data); d.Trace = _traceSvc.Build(d, data); }
                 return s;
             });
 
@@ -191,7 +192,7 @@ public partial class MainViewModel : ObservableObject
                 _fillSvc.Fill(d.Demands, d);
                 progress.Report("Validating…");
                 var s = _vsvc.Validate(d.Demands, d);
-                foreach (var dem in d.Demands) _detailSvc.Build(dem, d);
+                foreach (var dem in d.Demands) { _detailSvc.Build(dem, d); dem.Trace = _traceSvc.Build(dem, d); }
                 return (d, s);
             });
 

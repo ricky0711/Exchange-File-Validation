@@ -74,6 +74,39 @@ public sealed class EcuDicoEntry
     public bool Different { get; set; }
 }
 
+/// <summary>One CAN-FD container frame from "Construction of Container frame" (the assembly layer).</summary>
+public sealed class ContainerFrame
+{
+    public string FrameName { get; set; } = "";
+    public string FrameId { get; set; } = "";
+    public string FrameType { get; set; } = "";
+    public string TxUnit { get; set; } = "";              // gateway/master that emits the container (PIU_MASTER on FACE)
+    public string Mac { get; set; } = "";                 // "x" ⇒ secured variant
+    public string TransmissionType { get; set; } = "";
+    public string Period { get; set; } = "";
+    public string ExclTime { get; set; } = "";
+    public string OriginalId { get; set; } = "";
+    public string ContainedPdu { get; set; } = "";        // Contained I-PDU name (join key to the signal layer)
+    public string OriginalLength { get; set; } = "";
+    public string OriginalTransmissionType { get; set; } = "";
+    public string OriginalPeriod { get; set; } = "";
+    public string OriginalExclTime { get; set; } = "";
+    public string OriginalTxUnit { get; set; } = "";      // source ECU
+
+    public bool IsSecured => Mac.Trim().Equals("x", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>One layer of the signal→PDU→container→route trace (Part B).</summary>
+public sealed record TraceStep(string Layer, string Title, string Detail);
+
+/// <summary>The resolved content→packing→routing chain for a demand.</summary>
+public sealed class FrameTrace
+{
+    public List<TraceStep> Steps { get; } = new();
+    public bool HasContainer { get; set; }
+    public bool CrossesGateway { get; set; }   // route passes through the CGW / PIU_MASTER
+}
+
 /// <summary>Routing row from "Network Path".</summary>
 public sealed class NetworkRoute
 {
@@ -124,6 +157,9 @@ public sealed class IsrDemand
 
     // --- Part C: L3 customer frame assignment (gates signal/transmission creation) ---
     public string AssignedFrame { get; set; } = "";       // customer decision: new frame name or an existing frame
+
+    // --- Part B: signal → PDU → container → route trace ---
+    public FrameTrace? Trace { get; set; }
     public List<ValidationResult> Results { get; } = new();
 
     public string LevelLabel => Level switch
