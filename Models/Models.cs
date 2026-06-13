@@ -24,6 +24,10 @@ public sealed class SignalDef
     public string Period { get; set; } = "";
     public string ExclTime { get; set; } = "";
 
+    public string FunctionalFlag { get; set; } = "";   // Message List 'Functional' column (x/blank), if present
+    public bool Functional { get; set; }               // RECOMPUTED from ISR-Applied (any active ISR) — Part F
+    public string FunctionalMark => Functional ? "x" : "";
+
     /// <summary>Per-ECU T/R map from the Message List node columns (only non-empty cells).</summary>
     public Dictionary<string, string> EcuTxRx { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -59,6 +63,9 @@ public sealed class AppliedIsr
     public string Crc { get; set; } = "";
     /// <summary>Value of the latest release column (x = applied, A = abandon, R = re-something).</summary>
     public string LatestStatus { get; set; } = "";
+
+    /// <summary>Current status = value in the latest non-empty tranche column (x = Use, A = Abandon, R = Refused).</summary>
+    public bool IsActive => LatestStatus.Trim().Equals("x", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Level-match key used by the macros: Parameter + Tx + Rx + "x".</summary>
     public string SignalTxRxKey => $"{Parameter}|{Transmitter}|{Receiver}";

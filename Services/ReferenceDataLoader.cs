@@ -87,6 +87,24 @@ public sealed class ReferenceData
     /// <summary>Optional second-architecture signal defs (for Level 2.1 + fill). Set when the user loads one.</summary>
     public Dictionary<string, SignalDef>? SecondArchByName { get; set; }
 
+    /// <summary>Recomputed per-signal functional status (Part F): functional = ANY of its ISRs is active ('x').</summary>
+    public Dictionary<string, bool> FunctionalBySignal { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Build FunctionalBySignal from ISR-Applied (a signal has many ISRs — inspect them all), then stamp SignalDef.Functional.</summary>
+    public void IndexFunctional()
+    {
+        FunctionalBySignal.Clear();
+        foreach (var a in AppliedIsrs)
+        {
+            var sigName = a.Parameter.Trim();
+            if (sigName.Length == 0) continue;
+            bool wasFunctional = FunctionalBySignal.TryGetValue(sigName, out var f) && f;
+            FunctionalBySignal[sigName] = wasFunctional || a.IsActive;   // OR of active ISRs
+        }
+        foreach (var sig in Signals)
+            sig.Functional = FunctionalBySignal.TryGetValue(sig.SignalName, out var fn) && fn;
+    }
+
     /// <summary>ECU → its home channel segment(s), derived from Network Path (Part C same-channel rule).</summary>
     public Dictionary<string, HashSet<string>> EcuChannels { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -139,9 +157,10 @@ public sealed class ReferenceDataLoader
         int cRes = m.Col("Resolution (Dec)", "Resolution"), cOff = m.Col("Offset (Dec)", "Offset");
         int cMin = m.Col("Min (Dec)", "Min"), cMax = m.Col("Max (Dec)", "Max");
         int cTx = m.Col("Transmission Type"), cPer = m.Col("Period (ms)", "Period"), cExcl = m.Col("Excl. Time (ms)", "Excl. Time");
+        int cFunc = m.Col("Functional");
 
         // --- ECU node columns: any other header whose data cells contain only T / R marks ---
-        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl };
+        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc };
         var ecuCols = new List<(int col, string name)>();
         var trSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "T", "R", "T/R", "TR", "T-R" };
         int lastHeaderCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
@@ -191,6 +210,7 @@ public sealed class ReferenceDataLoader
                 TransmissionType = m.Get(row, cTx),
                 Period = m.Get(row, cPer),
                 ExclTime = m.Get(row, cExcl),
+                FunctionalFlag = m.Get(row, cFunc),
             };
             foreach (var (col, ecuName) in ecuCols)
             {
@@ -210,17 +230,64 @@ public sealed class ReferenceDataLoader
               ?? wb.Worksheets.FirstOrDefault();
         var list = new List<AppliedIsr>();
         if (ws is null) return list;
-        var m = new ColumnMap(ws.Row(1));
+        var header = ws.Row(1);
+        var m = new ColumnMap(header);
         int cIsr = m.Col("ISR N°", "ISR No"), cFeat = m.Col("Electronic Feature", "Feature");
         int cTx = m.Col("Transmitter"), cRx = m.Col("Receiver"), cFrame = m.Col("Frame");
         int cParam = m.Col("Parameter"), cAsil = m.Col("ASIL Level"), cClk = m.Col("CLK"), cCrc = m.Col("CRC");
         int last = ws.LastRowUsed()?.RowNumber() ?? 1;
-        int lastCol = ws.Row(1).LastCellUsed()?.Address.ColumnNumber ?? 1;
+        int lastCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
+
+        // Part F: status is PER TRANCHE (T1_2023 … T4_2025/2026). Detect tranche columns; the trailing
+        // "x:Use A:Abandon R:Refused" cell is a legend, not data. Current status = latest non-empty tranche.
+        var known = new HashSet<int> { cIsr, cFeat, cTx, cRx, cFrame, cParam, cAsil, cClk, cCrc };
+        bool IsLegend(string h) => h.Contains("Use", StringComparison.OrdinalIgnoreCase)
+                                && h.Contains("Abandon", StringComparison.OrdinalIgnoreCase);
+        var trancheRe = new System.Text.RegularExpressions.Regex(@"^T\d", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var trancheCols = new List<int>();
+        for (int c = 1; c <= lastCol; c++)
+        {
+            if (known.Contains(c)) continue;
+            var h = ColumnMap.Norm(header.Cell(c).GetString());
+            if (h.Length == 0 || IsLegend(h)) continue;
+            if (trancheRe.IsMatch(h)) trancheCols.Add(c);
+        }
+        if (trancheCols.Count == 0)   // fallback: columns whose cells are only x / A / R
+        {
+            int probeEnd = Math.Min(last, 200);
+            bool IsStatus(string v) => v.Equals("x", StringComparison.OrdinalIgnoreCase)
+                || v.Equals("A", StringComparison.OrdinalIgnoreCase) || v.Equals("R", StringComparison.OrdinalIgnoreCase);
+            for (int c = 1; c <= lastCol; c++)
+            {
+                if (known.Contains(c)) continue;
+                var h = ColumnMap.Norm(header.Cell(c).GetString());
+                if (h.Length == 0 || IsLegend(h)) continue;
+                bool sawVal = false, onlyStatus = true;
+                for (int r = 2; r <= probeEnd && onlyStatus; r++)
+                {
+                    var v = ws.Row(r).Cell(c).GetString().Trim();
+                    if (v.Length == 0) continue;
+                    sawVal = true;
+                    if (!IsStatus(v)) onlyStatus = false;
+                }
+                if (sawVal && onlyStatus) trancheCols.Add(c);
+            }
+        }
+        trancheCols.Sort();
+
         for (int r = 2; r <= last; r++)
         {
             var row = ws.Row(r);
             var isr = m.Get(row, cIsr);
             if (isr.Length == 0) continue;
+
+            string status = "";
+            for (int i = trancheCols.Count - 1; i >= 0; i--)   // latest non-empty tranche
+            {
+                var v = row.Cell(trancheCols[i]).GetString().Trim();
+                if (v.Length > 0) { status = v; break; }
+            }
+
             list.Add(new AppliedIsr
             {
                 IsrNumber = isr,
@@ -232,7 +299,7 @@ public sealed class ReferenceDataLoader
                 AsilLevel = m.Get(row, cAsil),
                 Clk = m.Get(row, cClk),
                 Crc = m.Get(row, cCrc),
-                LatestStatus = row.Cell(lastCol).GetString().Trim(),
+                LatestStatus = status,
             });
         }
         return list;
@@ -434,6 +501,7 @@ public sealed class ReferenceDataLoader
         progress?.Report("Loading ISR-Applied…");
         using (var appliedWb = new XLWorkbook(isrAppliedPath))
             data.AppliedIsrs.AddRange(LoadAppliedIsrs(appliedWb));
+        data.IndexFunctional();   // per-signal functional status from the tranche statuses (Part F)
 
         progress?.Report("Loading Exchange File demands…");
         using (var exWb = new XLWorkbook(exchangeFilePath))
@@ -456,6 +524,10 @@ public sealed class ReferenceDataLoader
         data.AppliedIsrs.AddRange(LoadAppliedIsrs(wb));
         data.Dico.AddRange(LoadDico(wb));
         data.Routes.AddRange(LoadRoutes(wb));
+        data.Containers.AddRange(LoadContainers(wb));
+        data.IndexContainers();
+        data.IndexChannels();
+        data.IndexFunctional();
         progress?.Report("Done. " + data.Summary);
         return data;
     }

@@ -65,6 +65,7 @@ public sealed class IsrDetailBuilder
         Row("Coding", p.Coding, sig?.Coding ?? "", info: true);     // logical states vs binary coding — not directly comparable
         Row("Meaning", p.Meaning, sig?.Meaning ?? "", info: true);  // multi-line free text — show, don't flag
         Row("Period", "", sig?.Period ?? "");
+        Row("Functional (AT)", "", sig is null ? "" : (sig.Functional ? "functional" : "non-functional"), info: true);
         Row("Unavailable value", d.ReqUnavailableValue, "");
         Row("Network path", d.ReqNetworkPath, "");
         Row("Change mgmt n°", d.ReqChangeMgmt, "");

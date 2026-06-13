@@ -34,6 +34,7 @@ public sealed class ValidationService
             LevelSummary(demands),
             CheckDuplicates(demands),
             CheckSignalInAt(demands, data),
+            CheckFunctionalStatus(demands, data),
             CheckSignalMultiplicity(demands),
             CheckSignalNameCase(demands, data),
             CheckCoding(demands, data),
@@ -138,6 +139,26 @@ public sealed class ValidationService
             }
         }
         return Sum("Main validation", "Signal present in AT", checkedN, err, warn, "Signal in AT");
+    }
+
+    // Part F: recomputed functional status (from ISR-Applied) vs the Message List 'Functional' flag.
+    private CheckSummary CheckFunctionalStatus(IReadOnlyList<IsrDemand> demands, ReferenceData data)
+    {
+        bool hasFlagColumn = data.Signals.Any(s => s.FunctionalFlag.Length > 0);
+        if (!hasFlagColumn)
+            return new() { Section = "Basic check", Name = "Functional status (ISR-Applied vs flag)", Kind = "Tool", Ran = false };
+
+        int checkedN = 0;
+        foreach (var d in demands)
+        {
+            var sig = d.MatchedDef; if (sig is null) continue;
+            checkedN++;
+            bool flag = sig.FunctionalFlag.Trim().Equals("x", StringComparison.OrdinalIgnoreCase);
+            if (flag != sig.Functional)
+                d.Results.Add(new ValidationResult("Functional status", Severity.Info,
+                    $"Message-List flag ({(flag ? "x" : "blank")}) disagrees with recomputed status ({(sig.Functional ? "functional" : "non-functional")}) from ISR-Applied."));
+        }
+        return Sum("Basic check", "Functional status (ISR-Applied vs flag)", checkedN, 0, 0, "Functional status");
     }
 
     // Part A: a signal maps into several frames — surface it (don't silently match one).

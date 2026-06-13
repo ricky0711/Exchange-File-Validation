@@ -41,6 +41,11 @@ public sealed class LevelAssignmentService
             {
                 Set(d, IsrLevel.Level0, "ISR n° already present in ISR-applied.");
             }
+            else if (data.FunctionalBySignal.TryGetValue((d.ParameterProposal ?? "").Trim(), out var fn) && !fn)
+            {
+                // Part F: signal known in ISR-Applied but currently non-functional (all ISRs Abandon/Refused) ⇒ reactivation.
+                Set(d, IsrLevel.Level0, "L0 reactivation — signal was deactivated before (all its ISRs are Abandon/Refused).");
+            }
             else if (l1.Contains(Key(d.ParameterProposal, d.Emitter, d.Receiver)))
             {
                 Set(d, IsrLevel.Level1, "Signal + Tx + Rx matched an applied ISR.");

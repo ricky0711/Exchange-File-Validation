@@ -79,6 +79,7 @@ public partial class ReferenceBrowserViewModel : ObservableObject
             new() { Header = "Offset", BindingPath = nameof(SignalDef.Offset), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.Offset) },
             new() { Header = "Min", BindingPath = nameof(SignalDef.Min), Width = 70, Accessor = o => S(o, x => x.Min) },
             new() { Header = "Max", BindingPath = nameof(SignalDef.Max), Width = 70, Accessor = o => S(o, x => x.Max) },
+            new() { Header = "Functional", BindingPath = nameof(SignalDef.FunctionalMark), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.FunctionalMark) },
             new() { Header = "Tx Type", BindingPath = nameof(SignalDef.TransmissionType), Width = 120, VisibleByDefault = false, Accessor = o => S(o, x => x.TransmissionType) },
             new() { Header = "Period", BindingPath = nameof(SignalDef.Period), Width = 70, VisibleByDefault = false, Accessor = o => S(o, x => x.Period) },
             new() { Header = "Excl. Time", BindingPath = nameof(SignalDef.ExclTime), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.ExclTime) },
