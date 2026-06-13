@@ -25,19 +25,9 @@ public sealed class PropertyFillService
             d.CrcStatus = d.ClkStatus = "";
             d.FilledBits = null; d.HasCrcOnFrame = d.HasClkOnFrame = false;
 
-            var name = d.ParameterProposal ?? "";
-            SignalDef? def = null;
-            string source = "";
-
-            if (name.Length > 0 && data.SignalByName.TryGetValue(name, out var s1))
-            {
-                def = s1; source = "Message List";
-            }
-            else if (name.Length > 0 && data.SecondArchByName is not null
-                     && data.SecondArchByName.TryGetValue(name, out var s2))
-            {
-                def = s2; source = "2nd architecture";
-            }
+            // Part A: use the centrally-resolved frame instance (matcher ran before Fill).
+            SignalDef? def = d.MatchedDef;
+            string source = d.MatchSource;
 
             if (def is null)
             {

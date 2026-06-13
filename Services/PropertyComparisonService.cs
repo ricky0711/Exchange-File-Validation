@@ -33,7 +33,7 @@ public sealed class PropertyComparisonService
         foreach (var d in demands)
         {
             if (string.IsNullOrWhiteSpace(d.ParameterProposal)) continue;
-            if (!data.SignalByName.TryGetValue(d.ParameterProposal, out var sig)) continue;
+            var sig = d.MatchedDef; if (sig is null) continue;   // resolved frame instance (Part A)
             var p = _parser.Parse(d.LogicalData, d.AnalogData);
 
             if (p.HasAnalog)
@@ -62,7 +62,7 @@ public sealed class PropertyComparisonService
         foreach (var d in demands)
         {
             if (string.IsNullOrWhiteSpace(d.OtherRequirements)) continue;
-            data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig);
+            var sig = d.MatchedDef;   // resolved frame instance (Part A)
 
             if (d.ReqTx.Length > 0)
             {

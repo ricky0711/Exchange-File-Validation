@@ -35,7 +35,28 @@ public sealed class ColumnMap
 public sealed class ReferenceData
 {
     public List<SignalDef> Signals { get; } = new();
+    /// <summary>First (primary) frame mapping per signal name — kept for convenience.</summary>
     public Dictionary<string, SignalDef> SignalByName { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>ALL frame mappings per signal name (a signal maps into many frames). Fillers excluded.</summary>
+    public Dictionary<string, List<SignalDef>> SignalMappingsByName { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Builds the multi-mapping index from <see cref="Signals"/>, skipping filler/padding rows.</summary>
+    public void IndexSignals()
+    {
+        SignalByName.Clear();
+        SignalMappingsByName.Clear();
+        foreach (var sig in Signals)
+        {
+            if (sig.IsFiller || string.IsNullOrEmpty(sig.SignalName)) continue;   // padding rows aren't matchable
+            if (!SignalMappingsByName.TryGetValue(sig.SignalName, out var list))
+            {
+                list = new List<SignalDef>();
+                SignalMappingsByName[sig.SignalName] = list;
+                SignalByName[sig.SignalName] = sig;     // first mapping = primary
+            }
+            list.Add(sig);
+        }
+    }
     public List<AppliedIsr> AppliedIsrs { get; } = new();
     public List<EcuDicoEntry> Dico { get; } = new();
     public List<NetworkRoute> Routes { get; } = new();
@@ -45,7 +66,8 @@ public sealed class ReferenceData
     public Dictionary<string, SignalDef>? SecondArchByName { get; set; }
 
     public string Summary =>
-        $"Signals: {Signals.Count:N0} | Demands: {Demands.Count:N0} | Applied ISRs: {AppliedIsrs.Count:N0} | Dico: {Dico.Count:N0} | Routes: {Routes.Count:N0}";
+        $"Signals: {Signals.Count:N0} ({SignalByName.Count:N0} distinct, {SignalMappingsByName.Count(kv => kv.Value.Count > 1):N0} multi-frame) | "
+        + $"Demands: {Demands.Count:N0} | Applied ISRs: {AppliedIsrs.Count:N0} | Dico: {Dico.Count:N0} | Routes: {Routes.Count:N0}";
 }
 
 public sealed class ReferenceDataLoader
@@ -62,7 +84,10 @@ public sealed class ReferenceDataLoader
         var header = ws.Row(1);
         var m = new ColumnMap(header);
         int cSig = m.Col("Signal Name"), cFrame = m.Col("Frame Name"), cId = m.Col("Frame ID (Hex)", "Frame ID");
+        int cContainer = m.Col("Frame Container");
         int cType = m.Col("Frame Type"), cPdu = m.Col("Contained I-PDU Name", "PDU Name");
+        int cByte = m.Col("Byte Position in ContainedPDU", "Byte Position", "Start Byte");
+        int cBit = m.Col("Bit Position in ContainedPDU", "Bit Position", "Start Bit");
         int cSize = m.Col("Signal Size (Bits)"), cVt = m.Col("Value Type (Sign)", "Value Type");
         int cCode = m.Col("Coding (Bin/Hex)", "Coding"), cMean = m.Col("Meaning"), cUnit = m.Col("Unit");
         int cRes = m.Col("Resolution (Dec)", "Resolution"), cOff = m.Col("Offset (Dec)", "Offset");
@@ -70,7 +95,7 @@ public sealed class ReferenceDataLoader
         int cTx = m.Col("Transmission Type"), cPer = m.Col("Period (ms)", "Period"), cExcl = m.Col("Excl. Time (ms)", "Excl. Time");
 
         // --- ECU node columns: any other header whose data cells contain only T / R marks ---
-        var known = new HashSet<int> { cSig, cFrame, cId, cType, cPdu, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl };
+        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl };
         var ecuCols = new List<(int col, string name)>();
         var trSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "T", "R", "T/R", "TR", "T-R" };
         int lastHeaderCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
@@ -103,8 +128,11 @@ public sealed class ReferenceDataLoader
                 SignalName = name,
                 FrameName = m.Get(row, cFrame),
                 FrameIdHex = m.Get(row, cId),
+                FrameContainer = m.Get(row, cContainer),
                 FrameType = m.Get(row, cType),
                 PduName = m.Get(row, cPdu),
+                BytePosition = m.Get(row, cByte),
+                BitPosition = m.Get(row, cBit),
                 SignalSizeBits = int.TryParse(m.Get(row, cSize), out var b) ? b : null,
                 ValueType = m.Get(row, cVt),
                 Coding = m.Get(row, cCode),
@@ -285,7 +313,7 @@ public sealed class ReferenceDataLoader
 
         progress?.Report("Loading Message List (msg set)…");
         data.Signals.AddRange(LoadMessageList(msgSetPath, progress));
-        foreach (var sig in data.Signals) data.SignalByName.TryAdd(sig.SignalName, sig);
+        data.IndexSignals();   // signal → all frame mappings (keeps duplicates; fillers excluded)
 
         using (var msg = new XLWorkbook(msgSetPath))
         {
@@ -310,8 +338,7 @@ public sealed class ReferenceDataLoader
     {
         var data = new ReferenceData();
         data.Signals.AddRange(LoadMessageList(messageListPath, progress));
-        foreach (var s in data.Signals)
-            data.SignalByName.TryAdd(s.SignalName, s);
+        data.IndexSignals();
 
         progress?.Report("Opening Exchange File…");
         using var wb = new XLWorkbook(exchangeFilePath);   // .xlsm opens fine with ClosedXML (macros ignored)

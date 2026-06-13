@@ -34,6 +34,7 @@ public sealed class ValidationService
             LevelSummary(demands),
             CheckDuplicates(demands),
             CheckSignalInAt(demands, data),
+            CheckSignalMultiplicity(demands),
             CheckSignalNameCase(demands, data),
             CheckCoding(demands, data),
             CheckAnalogBits(demands, data),
@@ -136,6 +137,22 @@ public sealed class ValidationService
         return Sum("Main validation", "Signal present in AT", checkedN, err, warn, "Signal in AT");
     }
 
+    // Part A: a signal maps into several frames — surface it (don't silently match one).
+    private CheckSummary CheckSignalMultiplicity(IReadOnlyList<IsrDemand> demands)
+    {
+        int checkedN = 0;
+        foreach (var d in demands)
+        {
+            if (d.MatchedFrames.Count <= 1) continue;
+            checkedN++;
+            var frames = string.Join(", ", d.MatchedFrames.Select(f =>
+                f.FrameName + (string.IsNullOrEmpty(f.FrameType) ? "" : $" [{f.FrameType}]")));
+            d.Results.Add(new ValidationResult("Frame multiplicity", Severity.Info,
+                $"Signal maps into {d.MatchedFrames.Count} frames: {frames}. Matched → {d.MatchedDef?.FrameName ?? "?"}."));
+        }
+        return Sum("Main validation", "Signal frame multiplicity", checkedN, 0, 0, "Frame multiplicity");
+    }
+
     private CheckSummary CheckSignalNameCase(IReadOnlyList<IsrDemand> demands, ReferenceData data)
     {
         int checkedN = 0, err = 0;
@@ -160,7 +177,7 @@ public sealed class ValidationService
         int checkedN = 0, warn = 0;
         foreach (var d in demands)
         {
-            if (!data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig)) continue;
+            var sig = d.MatchedDef; if (sig is null || sig.IsStructural) continue;   // resolved frame instance (Part A)
             if (sig.SignalSizeBits is not int bits || bits < 1 || bits > 6) continue;
             if (string.IsNullOrWhiteSpace(sig.Meaning)) continue;
             checkedN++;
@@ -181,7 +198,7 @@ public sealed class ValidationService
         int checkedN = 0, warn = 0;
         foreach (var d in demands)
         {
-            if (!data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig)) continue;
+            var sig = d.MatchedDef; if (sig is null || sig.IsStructural) continue;   // resolved frame instance (Part A)
             if (sig.SignalSizeBits is not int bits) continue;
             if (!double.TryParse(sig.Min, out var min) || !double.TryParse(sig.Max, out var max)
                 || !double.TryParse(sig.Resolution, out var res) || res == 0) continue;
@@ -207,7 +224,7 @@ public sealed class ValidationService
             var name = d.ParameterProposal ?? "";
             var p = MagicProfiles.FirstOrDefault(x => name.Contains(x.Pattern, StringComparison.OrdinalIgnoreCase));
             if (p is null) continue;
-            if (!data.SignalByName.TryGetValue(name, out var sig)) continue;
+            var sig = d.MatchedDef; if (sig is null) continue;
             checkedN++;
             var bad = new List<string>();
             if (p.Bits is int b && sig.SignalSizeBits != b) bad.Add($"size {sig.SignalSizeBits}!={b}");
@@ -232,7 +249,7 @@ public sealed class ValidationService
         {
             if (string.IsNullOrWhiteSpace(d.UpdateTime)) continue;
             string period = "", excl = "";
-            if (data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig)) { period = sig.Period; excl = sig.ExclTime; }
+            if (d.MatchedDef is { } sig) { period = sig.Period; excl = sig.ExclTime; }
             checkedN++;
             if (!UpdateTimeRule.Check(d.UpdateTime, period, excl))
             {
@@ -291,7 +308,7 @@ public sealed class ValidationService
         foreach (var d in demands)
         {
             if (d.Level != IsrLevel.Level2) continue;
-            if (!data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig)) continue;
+            var sig = d.MatchedDef; if (sig is null || sig.IsStructural) continue;   // resolved frame instance (Part A)
             var txs = sig.Transmitters.ToList();
             if (txs.Count == 0) continue;   // node columns not detected
             checkedN++;
@@ -366,7 +383,7 @@ public sealed class ValidationService
             { err++; d.Results.Add(new ValidationResult("Other Req", Severity.Error, $"OtherReq Rx '{d.ReqRx}' != Receiver '{d.Receiver}'.")); }
 
             // UnavailableValue format: hex (0x) for >4-bit signals, binary (0b) otherwise
-            if (d.ReqUnavailableValue.Length > 0 && data.SignalByName.TryGetValue(d.ParameterProposal ?? "", out var sig)
+            if (d.ReqUnavailableValue.Length > 0 && d.MatchedDef is { } sig
                 && sig.SignalSizeBits is int bits)
             {
                 var uv = d.ReqUnavailableValue.Trim();

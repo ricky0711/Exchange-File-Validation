@@ -7,7 +7,10 @@ public sealed class SignalDef
     public string FrameName { get; set; } = "";
     public string FrameIdHex { get; set; } = "";
     public string FrameType { get; set; } = "";
+    public string FrameContainer { get; set; } = "";   // "Frame Container" col — the container a classic frame is packed into
     public string PduName { get; set; } = "";          // "Contained I-PDU Name"
+    public string BytePosition { get; set; } = "";     // Byte Position in ContainedPDU
+    public string BitPosition { get; set; } = "";      // Bit Position in ContainedPDU
     public int? SignalSizeBits { get; set; }
     public string ValueType { get; set; } = "";
     public string Coding { get; set; } = "";
@@ -29,6 +32,17 @@ public sealed class SignalDef
 
     public bool IsCrc => SignalName.StartsWith("CRC_", StringComparison.OrdinalIgnoreCase) || SignalName == "VehicleSpeedCRC";
     public bool IsClock => SignalName.StartsWith("Clock_", StringComparison.OrdinalIgnoreCase) || SignalName == "VehicleSpeedClock";
+
+    /// <summary>Padding rows ("**** fixed to zero ****" / "…Container****") — excluded from signal matching/validation.</summary>
+    public bool IsFiller => SignalName.Contains("fixed to zero", StringComparison.OrdinalIgnoreCase);
+    public bool IsHeader => SignalName.StartsWith("Header", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Frame-structure signals (CRC / Clock / Header) — real, but not application signals to compare ISR props against.</summary>
+    public bool IsStructural => IsCrc || IsClock || IsHeader;
+
+    public bool IsFd => FrameType.Contains("FD", StringComparison.OrdinalIgnoreCase);
+    public bool IsContainerFrame => FrameType.Contains("container", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Secured container variant (*SC_FD, MAC=x).</summary>
+    public bool IsSecuredContainer => FrameName.Contains("SC_FD", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>One applied/confirmed ISR row from "Nissan_FACE HS applied proposal".</summary>
@@ -102,6 +116,14 @@ public sealed class IsrDemand
     public IsrLevel Level { get; set; } = IsrLevel.Unassigned;
     public string ImportStatus { get; set; } = "";        // "Ready to import" gates export
     public string Note { get; set; } = "";                // per-ISR user note
+
+    // --- Part A: resolved frame instance (a signal maps into many frames; pick the right one once) ---
+    public SignalDef? MatchedDef { get; set; }            // the chosen frame instance for this demand
+    public List<SignalDef> MatchedFrames { get; set; } = new();  // all frame mappings of the proposed signal
+    public string MatchSource { get; set; } = "";         // "Message List" | "2nd architecture" | ""
+
+    // --- Part C: L3 customer frame assignment (gates signal/transmission creation) ---
+    public string AssignedFrame { get; set; } = "";       // customer decision: new frame name or an existing frame
     public List<ValidationResult> Results { get; } = new();
 
     public string LevelLabel => Level switch

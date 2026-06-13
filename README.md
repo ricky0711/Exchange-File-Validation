@@ -9,6 +9,15 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
 
 
+## v2 — Step 5 (FACE data-model + level/container logic)
+
+### Part A — Signals map into MANY frames (matching correctness fix)
+A FACE signal gets one Message-List row **per frame it is mapped into** (~36% map into 2–4 frames: classic CAN / `*C_FD` container / `*SC_FD` secured). The old loader indexed with `TryAdd`, **silently keeping the first row** — so fill/validation/CRC/route compared against an arbitrary frame variant.
+- **New index `SignalMappingsByName` = signal → `List<SignalDef>` (all mappings)**; `SignalByName` stays as the primary (first). Filler/padding rows (`**** fixed to zero ****`) are excluded from matching; `SignalDef` gains `IsFiller`/`IsHeader`/`IsStructural`/`IsFd`/`IsContainerFrame`/`IsSecuredContainer` and the loaded `FrameContainer`/`BytePosition`/`BitPosition` columns.
+- **`FrameMatchService`** centrally resolves the correct instance per demand — priority: (a) explicit frame named → (b) FD-vs-HS preference → (c) Tx/Rx node coverage → (d) single fallback — caching `MatchedDef` / `MatchedFrames` / `MatchSource` on the demand. **Every consumer** (fill, validation property checks, ISR-vs-AT compare, detail panel) now uses it, so they all agree on the frame.
+- **Multiplicity surfaced** — a new `Frame multiplicity` check emits an info finding ("signal maps into N frames: … — matched →X") instead of guessing silently. The load status line reports distinct + multi-frame counts (verify nothing's lost).
+- Reference grid gains Frame Container / Byte Pos / Bit Pos columns (hidden by default).
+
 ## v2 — Step 4 (polish)
 
 ### A — Excel-grade data grids (Reference Data + Exchange File)

@@ -27,13 +27,8 @@ public sealed class IsrDetailBuilder
 
     public void Build(IsrDemand d, ReferenceData data)
     {
-        SignalDef? sig = null;
-        if (!string.IsNullOrWhiteSpace(d.ParameterProposal))
-        {
-            if (!data.SignalByName.TryGetValue(d.ParameterProposal, out sig)
-                && data.SecondArchByName is not null)
-                data.SecondArchByName.TryGetValue(d.ParameterProposal, out sig);
-        }
+        // Part A: the matched frame instance was resolved centrally (FrameMatchService).
+        SignalDef? sig = d.MatchedDef;
 
         var p = _parser.Parse(d.LogicalData, d.AnalogData);
         var detail = new IsrDetail

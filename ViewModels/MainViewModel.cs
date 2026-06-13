@@ -14,6 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ReferenceDataLoader _loader;
     private readonly ValidationService _vsvc = new();
     private readonly LevelAssignmentService _lsvc = new();
+    private readonly FrameMatchService _matcher = new();
     private readonly PropertyFillService _fillSvc = new();
     private readonly IsrDetailBuilder _detailSvc = new();
     private ReferenceData? _data;
@@ -101,11 +102,9 @@ public partial class MainViewModel : ObservableObject
         {
             var summaries = await Task.Run(() =>
             {
-                if (assignAndFill)
-                {
-                    _lsvc.Assign(data.Demands, data, _secondArch);
-                    _fillSvc.Fill(data.Demands, data);
-                }
+                if (assignAndFill) _lsvc.Assign(data.Demands, data, _secondArch);
+                _matcher.Apply(data.Demands, data);             // resolve the correct frame instance per demand
+                if (assignAndFill) _fillSvc.Fill(data.Demands, data);
                 var s = _vsvc.Validate(data.Demands, data);
                 foreach (var d in data.Demands) _detailSvc.Build(d, data);   // side-by-side ISR vs AT detail
                 return s;
@@ -186,8 +185,9 @@ public partial class MainViewModel : ObservableObject
                 var d = _loader.LoadV2(ExchangeFilePath, MsgSetPath, IsrAppliedPath, progress);
                 var sa = d.SecondArchByName is null ? null
                     : new HashSet<string>(d.SecondArchByName.Keys, StringComparer.OrdinalIgnoreCase);
-                progress.Report("Assigning levels + filling properties…");
+                progress.Report("Assigning levels + matching frames + filling properties…");
                 _lsvc.Assign(d.Demands, d, sa);
+                _matcher.Apply(d.Demands, d);
                 _fillSvc.Fill(d.Demands, d);
                 progress.Report("Validating…");
                 var s = _vsvc.Validate(d.Demands, d);
