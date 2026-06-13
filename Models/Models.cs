@@ -141,6 +141,8 @@ public sealed class IsrDemand
     public string AnalogData { get; set; } = "";
     public string KindOfIsr { get; set; } = "";
     public string OtherRequirements { get; set; } = "";
+    public string LossLinkageAsil { get; set; } = "";     // ASIL columns (Part D) — either carrying a value ⇒ ASIL requested
+    public string CorruptDataAsil { get; set; } = "";
 
     // parsed from OtherRequirements
     public string ReqTx { get; set; } = "";

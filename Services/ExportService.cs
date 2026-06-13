@@ -49,6 +49,8 @@ public sealed class ExportService
         new("AnalogData", d => d.AnalogData),
         new("KindOfIsr", d => d.KindOfIsr),
         new("OtherRequirements", d => d.OtherRequirements),
+        new("LossLinkageASIL", d => d.LossLinkageAsil),
+        new("CorruptDataASIL", d => d.CorruptDataAsil),
         new("CRC/CLK", d => d.CrcClk),
         CLevel, CReady,
     };

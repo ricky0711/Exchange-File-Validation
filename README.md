@@ -26,6 +26,15 @@ The Message List (signal layer), **Construction of Container frame** (assembly l
 - **Same-channel rule (new Tx):** Network-Path **segment columns** are now loaded and an **ECU→home-channel** index is derived (home channel = segments common to all of an ECU's transmit routes). New check **`New Tx channel`**: a new Tx on a **different channel** than the existing Tx ⇒ **error** ("not permitted"); same channel ⇒ allowed; channel unknown ⇒ **warning**.
 - **L3 frame-assignment gate (sequenced):** new check **`L3 frame`** — if the L3 signal has property **errors** → "blocked, fix properties first"; once properties pass but **no customer frame** is assigned → **error** "awaiting customer frame assignment" (the tool never auto-assigns); once the customer sets a frame → info "proceed". A per-demand **Assigned frame (customer)** input appears in the L3 detail panel; Re-run re-gates.
 
+### Part D — Container-frame decision (ASIL)
+- **ASIL detection** (`AsilDetector`) reads **both** `LossLinkageASIL` / `CorruptDataASIL` demand columns (now loaded): any column carrying an ASIL value ⇒ **Requested**; an empty column ⇒ **Undetermined** (flagged, never assumed); explicit QM/no-ASIL ⇒ **None**.
+- **`ContainerDecisionService`** (pure): `{asilRequested, crossesGateway, fdOnly}` → `{none|normal|secure, busload|asil}` — ASIL+gateway ⇒ secure `*SC_FD`; ASIL single-channel ⇒ normal `*C_FD` sufficient; no ASIL ⇒ normal (busload, optional).
+- **CRC/CLK now factors ASIL** — ASIL ⇒ E2E **CRC+Clock required** (state `new` when absent); no-ASIL absent ⇒ `not required`; undetermined ⇒ `cannot decide`. New badge states wired.
+- New check **`Container/ASIL`**: undetermined ASIL ⇒ warning; ASIL+gateway but matched frame not secured ⇒ **error**; secure container where a normal one suffices ⇒ warning. The decision is also shown as a **Decision** step in the per-ISR trace.
+
+### Part E — Network route check enhancement
+`Network route` now uses the **container-aware** `FrameTraceService.ResolveRoute` (matches on both the original ECU **and** the container gateway Tx). On a miss it **diagnoses the missing hop** — frame/PDU not routed at all vs transmitter not routed for this frame vs no route to this receiver (segment pairing not gatewayed) — so the engineer knows exactly what new gateway routing is needed. The resolved **Synthesis path** is displayed in the trace's Route step.
+
 ## v2 — Step 4 (polish)
 
 ### A — Excel-grade data grids (Reference Data + Exchange File)

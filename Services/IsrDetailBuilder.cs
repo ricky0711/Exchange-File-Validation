@@ -81,6 +81,8 @@ public sealed class IsrDetailBuilder
         "reuse" => $"{kind}: reuse existing",
         "new" => onFrame ? $"{kind}: new needed" : $"{kind}: none on frame — new needed",
         "present" => $"{kind}: present (coverage unknown)",
+        "none" => $"{kind}: not required (no ASIL)",
+        "undetermined" => $"{kind}: ASIL undetermined",
         _ => $"{kind}: n/a (new signal)",
     };
 }

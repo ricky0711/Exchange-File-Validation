@@ -45,6 +45,21 @@ public sealed class FrameTraceService
             t.Steps.Add(new TraceStep("Route", $"{d.Emitter} → {d.Receiver}",
                 "No Network-Path row — new gateway routing may be required."));
         }
+
+        // 4) Container decision (ASIL) — what container this should ride in.
+        var asil = AsilDetector.Detect(d.LossLinkageAsil, d.CorruptDataAsil);
+        var decision = new ContainerDecisionService().Decide(asil == AsilState.Requested, t.CrossesGateway, sig.IsFd && !t.CrossesGateway);
+        string asilTxt = asil switch
+        {
+            AsilState.Requested => "ASIL requested",
+            AsilState.Undetermined => "ASIL undetermined",
+            _ => "no ASIL"
+        };
+        string decTxt = asil == AsilState.Undetermined
+            ? "undetermined (ASIL incomplete)"
+            : $"{decision.Needed} ({decision.Reason})";
+        t.Steps.Add(new TraceStep("Decision", $"Container: {decTxt}",
+            $"{asilTxt} · {(t.CrossesGateway ? "crosses CGW/PIU" : "single channel")}"));
         return t;
     }
 

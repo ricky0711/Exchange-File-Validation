@@ -367,6 +367,8 @@ public sealed class ReferenceDataLoader
         int cMedia = m.Col("Media Type"), cNet = m.Col("NetworkType"), cSyn = m.Col("Synthesis_Status");
         int cUpd = m.Col("UpdateTime"), cLog = m.Col("LogicalData"), cAna = m.Col("AnalogData"), cKind = m.Col("KindOfIsr");
         int cOther = m.Col("OtherRequirements", "Other Requirements");
+        int cLoss = m.Col("LossLinkageASIL", "Loss Linkage ASIL", "Loss of communication ASIL");
+        int cCorrupt = m.Col("CorruptDataASIL", "Corrupt Data ASIL", "Corruption ASIL");
         int last = ws.LastRowUsed()?.RowNumber() ?? 1;
         for (int r = 2; r <= last; r++)
         {
@@ -384,6 +386,7 @@ public sealed class ReferenceDataLoader
                 SynthesisStatus = m.Get(row, cSyn), UpdateTime = m.Get(row, cUpd),
                 LogicalData = m.Get(row, cLog), AnalogData = m.Get(row, cAna),
                 KindOfIsr = m.Get(row, cKind), OtherRequirements = m.Get(row, cOther),
+                LossLinkageAsil = m.Get(row, cLoss), CorruptDataAsil = m.Get(row, cCorrupt),
             };
             OtherRequirementsParser.Apply(demand);
             list.Add(demand);

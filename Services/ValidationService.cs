@@ -44,6 +44,7 @@ public sealed class ValidationService
             CheckMultisender(demands, data),
             CheckNewTxChannel(demands, data),
             CheckNetworkRoute(demands, data),
+            CheckContainerDecision(demands, data),
             CheckL3DigitalStates(demands),
             CheckOtherRequirements(demands, data),
             CheckL3FrameAssignment(demands),   // runs last: inspects the other findings
@@ -400,24 +401,78 @@ public sealed class ValidationService
         int checkedN = 0, warn = 0;
         foreach (var d in demands)
         {
-            var pdu = string.IsNullOrEmpty(d.FilledPdu) ? null : d.FilledPdu;
-            var frame = string.IsNullOrEmpty(d.FilledFrame) ? d.Frame : d.FilledFrame;
-            if (pdu is null && string.IsNullOrEmpty(frame)) continue;
+            var sig = d.MatchedDef;
+            var pdu = sig?.PduName ?? "";
+            var frame = sig is not null ? sig.FrameName : (string.IsNullOrEmpty(d.FilledFrame) ? d.Frame : d.FilledFrame);
+            if (pdu.Length == 0 && string.IsNullOrEmpty(frame)) continue;
             if (string.IsNullOrEmpty(d.Emitter) || string.IsNullOrEmpty(d.Receiver)) continue;
             checkedN++;
-            bool found = data.Routes.Any(r =>
-                ((pdu is not null && r.PduName.Equals(pdu, StringComparison.OrdinalIgnoreCase))
-                 || (frame.Length > 0 && r.FrameName.Equals(frame, StringComparison.OrdinalIgnoreCase)))
-                && r.Transmitter.Equals(d.Emitter.Trim(), StringComparison.OrdinalIgnoreCase)
-                && r.Receiver.Equals(d.Receiver.Trim(), StringComparison.OrdinalIgnoreCase));
-            if (!found)
-            {
-                warn++;
-                d.Results.Add(new ValidationResult("Network route", Severity.Warning,
-                    $"No Network Path entry for {pdu ?? frame}: {d.Emitter} -> {d.Receiver}. New routing may be needed."));
-            }
+
+            var cont = sig is null ? null : FrameTraceService.ResolveContainer(sig, data);
+            var route = FrameTraceService.ResolveRoute(d, sig, cont, data);   // container-aware (Part E)
+            if (route is not null) continue;
+
+            // Diagnose which hop is missing.
+            bool FrameMatch(NetworkRoute r) =>
+                (pdu.Length > 0 && r.PduName.Equals(pdu, StringComparison.OrdinalIgnoreCase)) ||
+                (frame.Length > 0 && r.FrameName.Equals(frame, StringComparison.OrdinalIgnoreCase));
+            bool frameRouted = data.Routes.Any(FrameMatch);
+            bool txRouted = data.Routes.Any(r => FrameMatch(r) &&
+                (r.Transmitter.Trim().Equals((d.Emitter ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                 || (cont is not null && r.Transmitter.Trim().Equals(cont.TxUnit.Trim(), StringComparison.OrdinalIgnoreCase))));
+
+            string why = !frameRouted
+                ? $"frame/PDU '{(pdu.Length > 0 ? pdu : frame)}' has no Network-Path entry"
+                : !txRouted
+                    ? $"transmitter '{d.Emitter}'{(cont is not null ? $"/'{cont.TxUnit}'" : "")} is not routed for this frame"
+                    : $"no route to receiver '{d.Receiver}' (segment pairing not gatewayed today)";
+            warn++;
+            d.Results.Add(new ValidationResult("Network route", Severity.Warning,
+                $"No route — {why}. New gateway routing likely required."));
         }
         return Sum("Main validation", "Network route (Tx->Rx path)", checkedN, 0, warn, "Network route");
+    }
+
+    // Part D: container-frame decision (ASIL). Flag undetermined ASIL + container-type mismatches.
+    private CheckSummary CheckContainerDecision(IReadOnlyList<IsrDemand> demands, ReferenceData data)
+    {
+        var decider = new ContainerDecisionService();
+        int checkedN = 0, err = 0, warn = 0;
+        foreach (var d in demands)
+        {
+            var sig = d.MatchedDef; if (sig is null) continue;
+            var asil = AsilDetector.Detect(d.LossLinkageAsil, d.CorruptDataAsil);
+
+            if (asil == AsilState.Undetermined)
+            {
+                checkedN++; warn++;
+                d.Results.Add(new ValidationResult("Container/ASIL", Severity.Warning,
+                    "ASIL undetermined (LossLinkageASIL / CorruptDataASIL incomplete) — cannot decide CRC/CLK/container."));
+                continue;
+            }
+            if (asil == AsilState.None) continue;   // no ASIL → container is busload-optional, nothing to enforce
+
+            checkedN++;
+            var cont = FrameTraceService.ResolveContainer(sig, data);
+            var route = FrameTraceService.ResolveRoute(d, sig, cont, data);
+            bool crosses = route is not null && FrameTraceService.CrossesGateway(route.SynthesisPath);
+            var decision = decider.Decide(true, crosses, sig.IsFd && !crosses);
+            bool targetSecure = sig.IsSecuredContainer;
+
+            if (decision.Needed == ContainerNeeded.Secure && !targetSecure)
+            {
+                err++;
+                d.Results.Add(new ValidationResult("Container/ASIL", Severity.Error,
+                    $"ASIL + crosses gateway ⇒ SECURE container (*SC_FD, MAC=x) required, but matched frame '{sig.FrameName}' is not secured."));
+            }
+            else if (decision.Needed == ContainerNeeded.Normal && targetSecure)
+            {
+                warn++;
+                d.Results.Add(new ValidationResult("Container/ASIL", Severity.Warning,
+                    $"Secure container '{sig.FrameName}' used where a normal *C_FD suffices (ASIL stays on a single FD channel)."));
+            }
+        }
+        return Sum("Main validation", "Container-frame decision (ASIL)", checkedN, err, warn, "Container/ASIL");
     }
 
     // L3 digital: count Etat_ states in LogicalData -> required bits (info for definition work).

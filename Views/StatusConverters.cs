@@ -98,10 +98,11 @@ public sealed class TraceLayerToBrushConverter : IValueConverter
     private static readonly SolidColorBrush Signal = New("#1565C0");
     private static readonly SolidColorBrush Container = New("#6D5DF5");
     private static readonly SolidColorBrush Route = New("#00897B");
+    private static readonly SolidColorBrush Decision = New("#EF8C00");
     private static readonly SolidColorBrush Other = New("#757575");
     public object Convert(object? value, Type t, object? p, CultureInfo c) => (value as string) switch
     {
-        "Signal" => Signal, "Container" => Container, "Route" => Route, _ => Other
+        "Signal" => Signal, "Container" => Container, "Route" => Route, "Decision" => Decision, _ => Other
     };
     public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
     private static SolidColorBrush New(string h) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); b.Freeze(); return b; }

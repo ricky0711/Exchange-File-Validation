@@ -100,6 +100,8 @@ public partial class ExchangeFileViewModel : ObservableObject
             new() { Header = "CRC/CLK", BindingPath = nameof(IsrDemand.CrcClk), Width = 80, Accessor = o => S(o, x => x.CrcClk) },
             new() { Header = "Media", BindingPath = nameof(IsrDemand.MediaType), Width = 90, VisibleByDefault = false, Accessor = o => S(o, x => x.MediaType) },
             new() { Header = "Net", BindingPath = nameof(IsrDemand.NetworkType), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.NetworkType) },
+            new() { Header = "Loss ASIL", BindingPath = nameof(IsrDemand.LossLinkageAsil), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.LossLinkageAsil) },
+            new() { Header = "Corrupt ASIL", BindingPath = nameof(IsrDemand.CorruptDataAsil), Width = 90, VisibleByDefault = false, Accessor = o => S(o, x => x.CorruptDataAsil) },
             new() { Header = "UpdateTime", BindingPath = nameof(IsrDemand.UpdateTime), Width = 100, Accessor = o => S(o, x => x.UpdateTime) },
             new() { Header = "Issues", BindingPath = nameof(IsrDemand.Issues), Star = true, Width = 360, Accessor = o => S(o, x => x.Issues) },
         };

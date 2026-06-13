@@ -50,8 +50,9 @@ public sealed class PropertyFillService
             frameHasCrcClk.TryGetValue(def.FrameName, out var cc);
             d.HasCrcOnFrame = cc.crc is not null;
             d.HasClkOnFrame = cc.clk is not null;
-            var (crcNote, crcState) = Reuse(cc.crc, "CRC", d);
-            var (clkNote, clkState) = Reuse(cc.clk, "Clock", d);
+            var asil = AsilDetector.Detect(d.LossLinkageAsil, d.CorruptDataAsil);   // ASIL ⇒ E2E CRC+Clock required
+            var (crcNote, crcState) = Reuse(cc.crc, "CRC", d, asil);
+            var (clkNote, clkState) = Reuse(cc.clk, "Clock", d, asil);
             d.CrcNote = crcNote + "; " + clkNote;
             d.CrcStatus = crcState; d.ClkStatus = clkState;
             d.FillStatus = $"Filled from {source}. {d.CrcNote}";
@@ -78,9 +79,15 @@ public sealed class PropertyFillService
 
     /// <summary>Macro AddISRClockAndCRC logic: an existing CRC/Clock is reusable only if it already
     /// has T at the demand's emitter and R at the receiver in the Message List node columns.</summary>
-    private static (string note, string state) Reuse(SignalDef? sig, string kind, IsrDemand d)
+    private static (string note, string state) Reuse(SignalDef? sig, string kind, IsrDemand d, AsilState asil)
     {
-        if (sig is null) return ($"no {kind} on frame - new {kind} likely needed", "new");
+        if (sig is null)
+            return asil switch
+            {
+                AsilState.Requested => ($"no {kind} on frame - new {kind} required (ASIL ⇒ E2E)", "new"),
+                AsilState.Undetermined => ($"{kind}: ASIL undetermined - cannot decide", "undetermined"),
+                _ => ($"no {kind} on frame - not required (no ASIL)", "none"),
+            };
         bool know = sig.EcuTxRx.Count > 0;
         if (!know) return ($"{kind} present (Tx/Rx coverage unknown)", "present");
         bool tOk = sig.EcuTxRx.TryGetValue(d.Emitter ?? "", out var tv) && tv.Contains('T', StringComparison.OrdinalIgnoreCase);
