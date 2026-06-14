@@ -9,6 +9,19 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
 
 
+## v2 — Step 7 (Explorer + Frame-layout view)
+
+### Feature 1 — Hierarchical Explorer (PDU → Frame → Signal → ISR)
+New **Explorer** page (Workspace group): a virtualized `TreeView` built from the in-memory join indexes (`ReferenceData.IndexExplorer` → `SignalsByFrame`, `FramesByPdu`, `IsrsByParameter`) — no files re-read.
+- 4 lazy levels: **PDU → Frames** (classic / `*C_FD` / `*SC_FD`, with ID/type/Tx) **→ Signals** (byte/bit + functional chip) **→ ISRs** (n°, Active/Abandoned/Refused chip, Tx→Rx). Each header shows a count; chips reuse the theme-safe colours.
+- **Lazy children** (built on first expand via a placeholder), tree **virtualized** (`VirtualizingStackPanel` + recycling). **Group by** re-roots as PDU / Frame / Signal. Search filters the roots.
+- A frame node → **Open frame view** (Feature 2); an ISR node → opens its frame. *Assumption: a frame's transmitter is the container master (`Tx unit`) if it's a container, else the union of its signals' T-column ECUs.*
+
+### Feature 2 — Frame structure (bit/byte layout) view
+New **Frame Layout** page: `FrameLayoutService` builds a byte × bit matrix from the loaded Message-List rows; the view renders it (rows = bytes, 8 bit columns labelled **7→0**).
+- Each signal is a coloured block spanning its bits from `Byte/Bit Position` for `Signal Size (Bits)`, **Motorola/MSB-first** across byte boundaries *(assumption — one-place change if Intel/LSB)*. Kinds coloured: application (per-PDU palette), **CRC**, **Clock**, padding (grey). Header strip shows name/ID/type/secured/DLC/Tx; a legend + a **used/free bits** busload hint; container **PDU bands** derived from each PDU's signal byte-range *(assumption: no explicit offset column — derived from min/max byte of the PDU's signals)*.
+- Click a block → highlight + side detail (size/position, unit/min/max/res, coding, Tx/Rx, functional, its ISRs). Opened from the Explorer or via a frame search box.
+
 ## v2 — Step 6 (route correctness + L2.1 cross-check)
 
 ### 1 — Route check: frame-instance Tx/Rx + "existing routes are set"

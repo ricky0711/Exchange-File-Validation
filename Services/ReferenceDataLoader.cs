@@ -90,6 +90,41 @@ public sealed class ReferenceData
     /// <summary>Recomputed per-signal functional status (Part F): functional = ANY of its ISRs is active ('x').</summary>
     public Dictionary<string, bool> FunctionalBySignal { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    // --- Explorer (Feature 1) join indexes: PDU → Frame → Signal → ISR ---
+    public Dictionary<string, List<SignalDef>> SignalsByFrame { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, SortedSet<string>> FramesByPdu { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, List<AppliedIsr>> IsrsByParameter { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void IndexExplorer()
+    {
+        SignalsByFrame.Clear(); FramesByPdu.Clear(); IsrsByParameter.Clear();
+        foreach (var s in Signals)
+        {
+            if (s.FrameName.Length > 0)
+            {
+                if (!SignalsByFrame.TryGetValue(s.FrameName, out var l)) SignalsByFrame[s.FrameName] = l = new();
+                l.Add(s);
+            }
+            if (s.PduName.Length > 0 && s.FrameName.Length > 0)
+            {
+                if (!FramesByPdu.TryGetValue(s.PduName, out var fs)) FramesByPdu[s.PduName] = fs = new(StringComparer.OrdinalIgnoreCase);
+                fs.Add(s.FrameName);
+            }
+        }
+        foreach (var c in Containers)   // union the Construction-of-Container PDU↔frame map
+        {
+            if (c.ContainedPdu.Length == 0 || c.FrameName.Length == 0) continue;
+            if (!FramesByPdu.TryGetValue(c.ContainedPdu, out var fs)) FramesByPdu[c.ContainedPdu] = fs = new(StringComparer.OrdinalIgnoreCase);
+            fs.Add(c.FrameName);
+        }
+        foreach (var a in AppliedIsrs)
+        {
+            if (a.Parameter.Length == 0) continue;
+            if (!IsrsByParameter.TryGetValue(a.Parameter, out var l)) IsrsByParameter[a.Parameter] = l = new();
+            l.Add(a);
+        }
+    }
+
     /// <summary>Build FunctionalBySignal from ISR-Applied (a signal has many ISRs — inspect them all), then stamp SignalDef.Functional.</summary>
     public void IndexFunctional()
     {
@@ -502,6 +537,7 @@ public sealed class ReferenceDataLoader
         using (var appliedWb = new XLWorkbook(isrAppliedPath))
             data.AppliedIsrs.AddRange(LoadAppliedIsrs(appliedWb));
         data.IndexFunctional();   // per-signal functional status from the tranche statuses (Part F)
+        data.IndexExplorer();     // PDU→Frame→Signal→ISR join indexes (Feature 1)
 
         progress?.Report("Loading Exchange File demands…");
         using (var exWb = new XLWorkbook(exchangeFilePath))
@@ -528,6 +564,7 @@ public sealed class ReferenceDataLoader
         data.IndexContainers();
         data.IndexChannels();
         data.IndexFunctional();
+        data.IndexExplorer();
         progress?.Report("Done. " + data.Summary);
         return data;
     }

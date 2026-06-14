@@ -92,6 +92,31 @@ public sealed class CrcStateToBrushConverter : IValueConverter
     private static SolidColorBrush New(string h) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); b.Freeze(); return b; }
 }
 
+/// <summary>Functional (recomputed) -> green chip, non-functional -> grey.</summary>
+public sealed class FunctionalToBrushConverter : IValueConverter
+{
+    private static readonly SolidColorBrush Yes = New("#2E7D32");
+    private static readonly SolidColorBrush No = New("#9E9E9E");
+    public object Convert(object? value, Type t, object? p, CultureInfo c) => (value is bool b && b) ? Yes : No;
+    public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+    private static SolidColorBrush New(string h) { var br = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); br.Freeze(); return br; }
+}
+
+/// <summary>ISR status -> chip colour (Active=green, Abandoned=amber, Refused=red, else grey).</summary>
+public sealed class IsrStatusToBrushConverter : IValueConverter
+{
+    private static readonly SolidColorBrush Active = New("#2E7D32");
+    private static readonly SolidColorBrush Abandoned = New("#EF8C00");
+    private static readonly SolidColorBrush Refused = New("#C62828");
+    private static readonly SolidColorBrush Other = New("#9E9E9E");
+    public object Convert(object? value, Type t, object? p, CultureInfo c) => (value as string) switch
+    {
+        "Active" => Active, "Abandoned" => Abandoned, "Refused" => Refused, _ => Other
+    };
+    public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+    private static SolidColorBrush New(string h) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); b.Freeze(); return b; }
+}
+
 /// <summary>Trace layer -> chip colour (Signal=blue, Container=violet, Route=teal).</summary>
 public sealed class TraceLayerToBrushConverter : IValueConverter
 {

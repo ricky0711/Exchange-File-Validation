@@ -26,6 +26,8 @@ public partial class MainViewModel : ObservableObject
         _loader = loader;
         Dashboard = new DashboardViewModel();
         ReferenceBrowser = new ReferenceBrowserViewModel();
+        Explorer = new ExplorerViewModel();
+        FrameView = new FrameViewModel();
         ExchangeFile = new ExchangeFileViewModel();
         Validation = new ValidationViewModel();
         Checklist = new ChecklistViewModel();
@@ -43,10 +45,15 @@ public partial class MainViewModel : ObservableObject
         // The Exchange File page now owns level/fill re-run (merged from the old Level + Property Fill pages).
         ExchangeFile.OnRerun = () => _ = RunPipelineAsync(true);
         ExchangeFile.OnLoadSecondArch = () => _ = LoadSecondArchitecture();
+
+        Explorer.OnOpenFrame = OpenFrameView;
+        Explorer.OnOpenTrace = n => OpenFrameView(n.FrameName);
     }
 
     public DashboardViewModel Dashboard { get; }
     public ReferenceBrowserViewModel ReferenceBrowser { get; }
+    public ExplorerViewModel Explorer { get; }
+    public FrameViewModel FrameView { get; }
     public ExchangeFileViewModel ExchangeFile { get; }
     public ValidationViewModel Validation { get; }
     public ChecklistViewModel Checklist { get; }
@@ -68,6 +75,8 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand] private void NavDashboard() { CurrentPage = Dashboard; ActivePage = "Dashboard"; }
     [RelayCommand] private void NavReference() { CurrentPage = ReferenceBrowser; ActivePage = "Reference"; }
+    [RelayCommand] private void NavExplorer() { if (IsLoaded) { CurrentPage = Explorer; ActivePage = "Explorer"; } }
+    [RelayCommand] private void NavFrameView() { if (IsLoaded) { CurrentPage = FrameView; ActivePage = "FrameView"; } }
     [RelayCommand] private void NavIsrVsMsgSet() { if (IsLoaded) { CurrentPage = IsrVsMsgSet; ActivePage = "IsrVsMsgSet"; } }
     [RelayCommand] private void NavOtherReq() { if (IsLoaded) { CurrentPage = OtherReqCompare; ActivePage = "OtherReq"; } }
 
@@ -128,6 +137,15 @@ public partial class MainViewModel : ObservableObject
             MessageBox.Show(ex.ToString(), "Validation error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally { IsBusy = false; }
+    }
+
+    /// <summary>Explorer → Frame view: render a frame's bit/byte layout (Feature 2).</summary>
+    private void OpenFrameView(string frame)
+    {
+        if (_data is null || string.IsNullOrWhiteSpace(frame)) return;
+        FrameView.Load(frame, _data);
+        CurrentPage = FrameView;
+        ActivePage = "FrameView";
     }
 
     /// <summary>Checklist → Validation: filter to the clicked check's rule + worst severity, then switch page.</summary>
@@ -201,6 +219,8 @@ public partial class MainViewModel : ObservableObject
                 : new HashSet<string>(data.SecondArchByName.Keys, StringComparer.OrdinalIgnoreCase);
 
             ReferenceBrowser.SetData(data);
+            Explorer.SetData(data);
+            FrameView.SetData(data);
             ExchangeFile.SetData(data);          // populate rich grid
             ExchangeFile.UpdatePipelineSummary(data);
             Export.SetData(data);

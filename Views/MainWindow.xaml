@@ -19,6 +19,12 @@
         <DataTemplate DataType="{x:Type vm:ReferenceBrowserViewModel}">
             <views:ReferenceBrowserView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ExplorerViewModel}">
+            <views:ExplorerView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:FrameViewModel}">
+            <views:FrameView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ExchangeFileViewModel}">
             <views:ExchangeFileView />
         </DataTemplate>
@@ -94,6 +100,12 @@
                     <ui:Button Content="  Reference Data" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Reference}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavReferenceCommand}"
                                IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Database24}" />
+                    <ui:Button Content="  Explorer" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Explorer}" HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExplorerCommand}"
+                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Layer24}" />
+                    <ui:Button Content="  Frame Layout" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=FrameView}" HorizontalAlignment="Stretch"
+                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavFrameViewCommand}"
+                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
                     <TextBlock Text="VALIDATION" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />
                     <ui:Button Content="  Exchange File" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Exchange}" HorizontalAlignment="Stretch"
                                HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExchangeCommand}"
