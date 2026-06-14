@@ -85,6 +85,7 @@ public sealed class FrameTraceService
         var rx = (d.Receiver ?? "").Trim();
 
         var txs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { (d.Emitter ?? "").Trim() };
+        if (sig is not null) foreach (var t in sig.Transmitters) txs.Add(t);   // the matched frame's T-column ECU(s)
         if (cont is not null)
         {
             if (cont.OriginalTxUnit.Length > 0) txs.Add(cont.OriginalTxUnit);

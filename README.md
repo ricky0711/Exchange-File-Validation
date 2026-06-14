@@ -9,6 +9,15 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
 
 
+## v2 — Step 6 (route correctness + L2.1 cross-check)
+
+### 1 — Route check: frame-instance Tx/Rx + "existing routes are set"
+- **(a) Resolve on the specific frame instance.** A receiver may be marked `R` on only **one** of a signal's frame instances, so `FrameMatchService` now prefers the instance whose **Rx column is `R`** (then whose emitter is `T`) — e.g. `DriverSafetyBeltBuckleState → PCM` resolves to `BCM_A13SC_FD` (the secured variant where `PCM = R`). Route resolution then includes that instance's **own T-column ECU** (the container master `PIU_MASTER`) as a candidate transmitter, alongside the original ECU and container gateway.
+- **(b) Never flag existing (L0/L1) routes.** If a Network-Path row resolves, the route is **SET** (shown in the trace, no finding). For **L0/L1** the transmission already exists, so the check never reports a missing hop even when matching can't locate the row. Only a genuinely new Tx→Rx — **L2 new-Rx / L2.1 / L3** with no row — is flagged "new gateway routing required". *(Acceptance case `DriverSafetyBeltBuckleState / BCM_A13SC_FD / PIU_MASTER → PCM` now resolves as route SET.)*
+
+### 5 — L2.1 cross-architecture bit/byte cross-check
+When a 2nd architecture is loaded, L2.1 demands get a new `L2.1 layout` check: an **info** finding shows the other architecture's frame/PDU/size/byte/bit layout to replicate, and a **warning** when the demand's declared size (from Logical/Analog) disagrees with the 2nd-architecture size.
+
 ## v2 — Step 5 (FACE data-model + level/container logic)
 
 ### Part A — Signals map into MANY frames (matching correctness fix)

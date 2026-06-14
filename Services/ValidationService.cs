@@ -37,6 +37,7 @@ public sealed class ValidationService
             CheckFunctionalStatus(demands, data),
             CheckSignalMultiplicity(demands),
             CheckSignalNameCase(demands, data),
+            CheckL21CrossArch(demands, data),
             CheckCoding(demands, data),
             CheckAnalogBits(demands, data),
             CheckMagicSignals(demands, data),
@@ -159,6 +160,36 @@ public sealed class ValidationService
                     $"Message-List flag ({(flag ? "x" : "blank")}) disagrees with recomputed status ({(sig.Functional ? "functional" : "non-functional")}) from ISR-Applied."));
         }
         return Sum("Basic check", "Functional status (ISR-Applied vs flag)", checkedN, 0, 0, "Functional status");
+    }
+
+    // Item 5: L2.1 cross-architecture bit/byte cross-check (needs the 2nd architecture loaded).
+    private CheckSummary CheckL21CrossArch(IReadOnlyList<IsrDemand> demands, ReferenceData data)
+    {
+        if (data.SecondArchByName is null)
+            return new() { Section = "Main validation", Name = "L2.1 cross-architecture bit/byte", Kind = "Tool", Ran = false };
+
+        var parser = new SignalDataParser();
+        int checkedN = 0, warn = 0;
+        foreach (var d in demands)
+        {
+            if (d.Level != IsrLevel.Level2_1) continue;
+            var other = d.MatchedDef; if (other is null) continue;   // for L2.1 the matched def is the 2nd-arch row
+            checkedN++;
+
+            d.Results.Add(new ValidationResult("L2.1 layout", Severity.Info,
+                $"2nd-arch layout: frame {other.FrameName} [{other.FrameType}], PDU {other.PduName}, "
+                + $"{other.SignalSizeBits?.ToString() ?? "?"} bits @ byte {(other.BytePosition.Length > 0 ? other.BytePosition : "?")}/bit {(other.BitPosition.Length > 0 ? other.BitPosition : "?")}. Replicate this layout."));
+
+            var p = parser.Parse(d.LogicalData, d.AnalogData);
+            int? declared = p.States is int st && st >= 2 ? (int)Math.Ceiling(Math.Log2(st)) : null;
+            if (declared is int db && other.SignalSizeBits is int ob && db != ob)
+            {
+                warn++;
+                d.Results.Add(new ValidationResult("L2.1 layout", Severity.Warning,
+                    $"Declared size {db} bits ≠ 2nd-architecture size {ob} bits — bit/byte layout differs across architectures."));
+            }
+        }
+        return Sum("Main validation", "L2.1 cross-architecture bit/byte", checkedN, 0, warn, "L2.1 layout");
     }
 
     // Part A: a signal maps into several frames — surface it (don't silently match one).
@@ -431,7 +462,11 @@ public sealed class ValidationService
 
             var cont = sig is null ? null : FrameTraceService.ResolveContainer(sig, data);
             var route = FrameTraceService.ResolveRoute(d, sig, cont, data);   // container-aware (Part E)
-            if (route is not null) continue;
+            if (route is not null) continue;                                   // route SET — found + shown in the trace
+
+            // (b) Existing transmissions (L0/L1) are already routed — never flag a missing hop, even if our
+            // matching didn't locate the row. Only a genuinely new Tx→Rx (L2 new-Rx / L2.1 / L3) needs routing.
+            if (d.Level is IsrLevel.Level0 or IsrLevel.Level1) continue;
 
             // Diagnose which hop is missing.
             bool FrameMatch(NetworkRoute r) =>

@@ -65,11 +65,13 @@ public sealed class FrameMatchService
         var byFd = c.Where(s => s.IsFd == wantFd).ToList();
         if (byFd.Count >= 1) c = byFd;
 
-        // (c) Tx/Rx node-coverage match (per-ECU T/R columns)
-        var byTr = c.Where(s =>
-            s.EcuTxRx.TryGetValue(d.Emitter ?? "", out var tv) && tv.Contains('T', StringComparison.OrdinalIgnoreCase) &&
-            s.EcuTxRx.TryGetValue(d.Receiver ?? "", out var rv) && rv.Contains('R', StringComparison.OrdinalIgnoreCase)).ToList();
-        if (byTr.Count >= 1) c = byTr;
+        // (c) Rx coverage — the requested receiver may be marked R on only ONE frame instance; prefer it.
+        var byRx = c.Where(s => s.EcuTxRx.TryGetValue(d.Receiver ?? "", out var rv) && rv.Contains('R', StringComparison.OrdinalIgnoreCase)).ToList();
+        if (byRx.Count >= 1) c = byRx;
+
+        // (c2) then prefer the instance whose emitter is marked T (the actual frame transmitter / container master)
+        var byTx = c.Where(s => s.EcuTxRx.TryGetValue(d.Emitter ?? "", out var tv) && tv.Contains('T', StringComparison.OrdinalIgnoreCase)).ToList();
+        if (byTx.Count >= 1) c = byTx;
 
         // (d) first remaining candidate
         return c.First();
