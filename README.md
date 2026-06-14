@@ -17,6 +17,10 @@ New **Explorer** page (Workspace group): a virtualized `TreeView` built from the
 - **Lazy children** (built on first expand via a placeholder), tree **virtualized** (`VirtualizingStackPanel` + recycling). **Group by** re-roots as PDU / Frame / Signal. Search filters the roots.
 - A frame node → **Open frame view** (Feature 2); an ISR node → opens its frame. *Assumption: a frame's transmitter is the container master (`Tx unit`) if it's a container, else the union of its signals' T-column ECUs.*
 
+### Feature 3 — Design pass + animations
+- The Explorer and Frame-view pages use the same **card language** as the dashboard (rounded cards + shared `SoftShadow`, generous spacing, restrained typography, theme-safe chips, `#6D5DF5` accent).
+- **Animations are chrome-only and code-driven** so a **single switch** (`Controls.AppAnimations.Enabled`) disables them all — nothing animates the virtualized `DataGrid`s: **page transitions** cross-fade via a `FadeContentControl` wrapping the page host; **frame-view signal blocks** stagger a fade-in on load; the **selected block** gets an accent glow. (Deferred to honour the single-toggle rule + virtualization: TreeViewItem expand animation, KPI count-up, XAML hover-scale — these would bypass the flag or touch hot/virtualized content.)
+
 ### Feature 2 — Frame structure (bit/byte layout) view
 New **Frame Layout** page: `FrameLayoutService` builds a byte × bit matrix from the loaded Message-List rows; the view renders it (rows = bytes, 8 bit columns labelled **7→0**).
 - Each signal is a coloured block spanning its bits from `Byte/Bit Position` for `Signal Size (Bits)`, **Motorola/MSB-first** across byte boundaries *(assumption — one-place change if Intel/LSB)*. Kinds coloured: application (per-PDU palette), **CRC**, **Clock**, padding (grey). Header strip shows name/ID/type/secured/DLC/Tx; a legend + a **used/free bits** busload hint; container **PDU bands** derived from each PDU's signal byte-range *(assumption: no explicit offset column — derived from min/max byte of the PDU's signals)*.

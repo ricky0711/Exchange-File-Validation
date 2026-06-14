@@ -135,8 +135,8 @@
                 </StackPanel>
             </Border>
 
-            <!-- Active page -->
-            <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+            <!-- Active page (cross-fades on navigation) -->
+            <controls:FadeContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
         </Grid>
     </Grid>
 </ui:FluentWindow>

@@ -2,6 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using ExchangeFileValidator.Controls;
 using ExchangeFileValidator.Services;
 using ExchangeFileValidator.ViewModels;
 
@@ -104,6 +107,17 @@ public partial class FrameView : UserControl
                 Grid.SetColumnSpan(border, seg.Span);
                 Matrix.Children.Add(border);
                 _segmentBorders.Add((block, border));
+
+                if (AppAnimations.Enabled)   // staggered fade-in (chrome only)
+                {
+                    border.Opacity = 0;
+                    var fade = new DoubleAnimation(0, 1, AppAnimations.Fast)
+                    {
+                        BeginTime = TimeSpan.FromMilliseconds(Math.Min(600, _segmentBorders.Count * 6)),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                    };
+                    border.BeginAnimation(OpacityProperty, fade);
+                }
                 first = false;
             }
         }
@@ -114,11 +128,15 @@ public partial class FrameView : UserControl
         if (sender is not Border b || b.Tag is not SignalBlock block || _vm is null) return;
         _vm.SelectedBlock = block;
         var accent = (Brush)(TryFindResource("SystemAccentColorPrimaryBrush") ?? Brushes.White);
+        var glowColor = (Color)ColorConverter.ConvertFromString("#6D5DF5")!;
         foreach (var (blk, border) in _segmentBorders)
         {
             bool sel = ReferenceEquals(blk, block);
             border.BorderBrush = sel ? accent : Brushes.White;
             border.BorderThickness = new Thickness(sel ? 2 : 0.5);
+            border.Effect = sel && AppAnimations.Enabled
+                ? new DropShadowEffect { Color = glowColor, BlurRadius = 14, ShadowDepth = 0, Opacity = 0.9 }
+                : null;
         }
     }
 
