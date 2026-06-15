@@ -73,6 +73,24 @@ public sealed class FrameTraceService
             return byPdu.FirstOrDefault(c => Same(c.FrameName, sig.FrameName) || Same(c.FrameName, sig.FrameContainer)) ?? byPdu[0];
         if (sig.FrameContainer.Length > 0 && data.ContainersByFrame.TryGetValue(sig.FrameContainer, out var cf)) return cf;
         if (data.ContainersByFrame.TryGetValue(sig.FrameName, out var cf2)) return cf2;
+
+        // "all PDU" carries the Frame Container linkage directly — synthesize a minimal container when the
+        // Construction sheet doesn't provide one (master Tx = T-marked ECU on the container frame; secured = *SC_FD).
+        var containerName = sig.FrameContainer.Length > 0 ? sig.FrameContainer
+                          : (sig.IsContainerFrame ? sig.FrameName : "");
+        if (containerName.Length > 0)
+        {
+            string master = data.SignalsByFrame.TryGetValue(containerName, out var fsigs)
+                ? string.Join(", ", fsigs.SelectMany(s => s.Transmitters).Distinct(StringComparer.OrdinalIgnoreCase))
+                : "";
+            return new ContainerFrame
+            {
+                FrameName = containerName,
+                ContainedPdu = sig.PduName,
+                TxUnit = master,
+                Mac = containerName.Contains("SC_FD", StringComparison.OrdinalIgnoreCase) ? "x" : "",
+            };
+        }
         return null;
     }
 

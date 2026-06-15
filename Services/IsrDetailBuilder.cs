@@ -66,7 +66,7 @@ public sealed class IsrDetailBuilder
         Row("Meaning", p.Meaning, sig?.Meaning ?? "", info: true);  // multi-line free text — show, don't flag
         Row("Period", "", sig?.Period ?? "");
         Row("Functional (AT)", "", sig is null ? "" : (sig.Functional ? "functional" : "non-functional"), info: true);
-        Row("Unavailable value", d.ReqUnavailableValue, "");
+        Row("Unavailable value", d.ReqUnavailableValue, sig?.UnavailableValue ?? "");
         Row("Network path", d.ReqNetworkPath, "");
         Row("Change mgmt n°", d.ReqChangeMgmt, "");
 

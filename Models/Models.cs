@@ -16,6 +16,8 @@ public sealed class SignalDef
     public string ValueType { get; set; } = "";
     public string Coding { get; set; } = "";
     public string Meaning { get; set; } = "";
+    public string UnavailableValue { get; set; } = "";   // "Unavailable Value (Bin/Hex)" [25]
+    public string Event { get; set; } = "";               // "Event" [17]
     public string Unit { get; set; } = "";
     public string Resolution { get; set; } = "";
     public string Offset { get; set; } = "";

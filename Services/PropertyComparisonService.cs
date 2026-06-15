@@ -72,7 +72,7 @@ public sealed class PropertyComparisonService
             if (d.ReqRx.Length > 0)
                 Add(rows, d, "Rx", Ecu(d.ReqRx), d.Receiver, mismatchesOnly, exact: true);
             if (d.ReqUnavailableValue.Length > 0)
-                Add(rows, d, "Unavailable value", d.ReqUnavailableValue, sig?.Coding ?? "", mismatchesOnly);
+                Add(rows, d, "Unavailable value", d.ReqUnavailableValue, sig?.UnavailableValue ?? "", mismatchesOnly);
             if (d.ReqNetworkPath.Length > 0)
             {
                 var route = data.Routes.FirstOrDefault(r =>

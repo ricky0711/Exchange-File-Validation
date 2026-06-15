@@ -182,37 +182,43 @@ public sealed class ReferenceData
 
     public string Summary =>
         $"Signals: {Signals.Count:N0} ({SignalByName.Count:N0} distinct, {SignalMappingsByName.Count(kv => kv.Value.Count > 1):N0} multi-frame) | "
-        + $"Demands: {Demands.Count:N0} | Applied ISRs: {AppliedIsrs.Count:N0} | Dico: {Dico.Count:N0} | Routes: {Routes.Count:N0}";
+        + $"Frames: {SignalsByFrame.Count:N0} | PDUs: {FramesByPdu.Count:N0} | ISR-linked signals: {IsrsByParameter.Count:N0} | "
+        + $"Demands: {Demands.Count:N0} | Applied ISRs: {AppliedIsrs.Count:N0} | Containers: {Containers.Count:N0} | Dico: {Dico.Count:N0} | Routes: {Routes.Count:N0}";
 }
 
 public sealed class ReferenceDataLoader
 {
-    /// <summary>Load the Message List signal database from an .xlsx. Prefers "(FD+HS) all CAN", falls back to "all PDU".</summary>
+    /// <summary>Load the Message List signal database from an .xlsx. Prefers the superset "Message List all PDU", falls back to "(FD+HS) all CAN".</summary>
     public List<SignalDef> LoadMessageList(string path, IProgress<string>? progress = null)
     {
         progress?.Report("Opening Message List…");
         using var wb = new XLWorkbook(path);
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("FD+HS"))
-              ?? wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("all PDU"))
+        // "Message List all PDU" is the superset (one row per signal/PDU/frame, proper Unavailable-Value/Coding
+        // columns, Frame Container linkage). Prefer it; fall back to the older "(FD+HS) all CAN" sheet.
+        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("all PDU"))
+              ?? wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("FD+HS"))
               ?? throw new InvalidOperationException("No 'Message List' sheet found.");
 
         var header = ws.Row(1);
         var m = new ColumnMap(header);
         int cSig = m.Col("Signal Name"), cFrame = m.Col("Frame Name"), cId = m.Col("Frame ID (Hex)", "Frame ID");
         int cContainer = m.Col("Frame Container");
-        int cType = m.Col("Frame Type"), cPdu = m.Col("Contained I-PDU Name", "PDU Name");
-        int cByte = m.ColLike("Byte Position in ContainedPDU", "Byte Position", "Start Byte");
-        int cBit = m.ColLike("Bit Position in ContainedPDU", "Bit Position", "Start Bit");
-        int cSize = m.ColLike("Signal Size (Bits)", "Signal Size", "Size (Bits)"), cVt = m.Col("Value Type (Sign)", "Value Type");
+        int cType = m.Col("Frame Type"), cPdu = m.Col("Contained I-PDU Name", "Contained I-PDU", "PDU Name");
+        // "all PDU" carries the frame-absolute position [11/12] (Byte Position (0-7) / Bit Position (7-0)) —
+        // use it for the layout; the older sheet only has the in-ContainedPDU position, matched as a fallback.
+        int cByte = m.ColLike("Byte Position (0-7)", "Byte Position in ContainedPDU", "Byte Position", "Start Byte");
+        int cBit = m.ColLike("Bit Position (7-0)", "Bit Position in ContainedPDU", "Bit Position", "Start Bit");
+        int cSize = m.ColLike("Signal Size (Bits)", "Signal Size", "Size (Bits)"), cVt = m.Col("Value Type (Sign)", "Value Type", "Value Type (Sign/Unsign)");
         int cFrameSize = m.ColLike("Frame Size", "Frame Length", "DLC");
         int cCode = m.Col("Coding (Bin/Hex)", "Coding"), cMean = m.Col("Meaning"), cUnit = m.Col("Unit");
+        int cUnavail = m.ColLike("Unavailable Value (Bin/Hex)", "Unavailable Value");
         int cRes = m.Col("Resolution (Dec)", "Resolution"), cOff = m.Col("Offset (Dec)", "Offset");
         int cMin = m.Col("Min (Dec)", "Min"), cMax = m.Col("Max (Dec)", "Max");
         int cTx = m.Col("Transmission Type"), cPer = m.Col("Period (ms)", "Period"), cExcl = m.Col("Excl. Time (ms)", "Excl. Time");
-        int cFunc = m.Col("Functional");
+        int cFunc = m.Col("Functional"), cEvent = m.Col("Event");
 
         // --- ECU node columns: any other header whose data cells contain only T / R marks ---
-        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc, cFrameSize };
+        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cUnavail, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc, cEvent, cFrameSize };
         var ecuCols = new List<(int col, string name)>();
         var trSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "T", "R", "T/R", "TR", "T-R" };
         int lastHeaderCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
@@ -255,6 +261,8 @@ public sealed class ReferenceDataLoader
                 ValueType = m.Get(row, cVt),
                 Coding = m.Get(row, cCode),
                 Meaning = m.Get(row, cMean),
+                UnavailableValue = m.Get(row, cUnavail),
+                Event = m.Get(row, cEvent),
                 Unit = m.Get(row, cUnit),
                 Resolution = m.Get(row, cRes),
                 Offset = m.Get(row, cOff),
@@ -561,6 +569,7 @@ public sealed class ReferenceDataLoader
         using (var exWb = new XLWorkbook(exchangeFilePath))
             data.Demands.AddRange(LoadDemands(exWb));
 
+        System.Diagnostics.Debug.WriteLine("[Load counts] " + data.Summary);   // proves the 'all PDU' switch lost nothing
         progress?.Report("Done. " + data.Summary);
         return data;
     }
