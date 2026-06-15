@@ -11,11 +11,9 @@ namespace ExchangeFileValidator.Services;
 /// </summary>
 public sealed class PropertyComparisonService
 {
-    private static readonly Dictionary<string, string> EcuMap = new(StringComparer.OrdinalIgnoreCase)
-    { ["PIU_Mst"] = "PIU_MASTER", ["PIU_Hood"] = "PIU_HOOD", ["PIU_Sub"] = "PIU_SUB" };
-    private static string Ecu(string n) => EcuMap.TryGetValue((n ?? "").Trim(), out var v) ? v : (n ?? "").Trim();
 
-    private static bool Same(string a, string b)
+
+    private static bool Same(string? a, string? b)
     {
         a = (a ?? "").Trim(); b = (b ?? "").Trim();
         if (a.Length == 0 || b.Length == 0) return true;                 // can't compare → don't flag
@@ -67,10 +65,10 @@ public sealed class PropertyComparisonService
             if (d.ReqTx.Length > 0)
             {
                 var msgTx = sig is null ? d.Emitter : string.Join(", ", sig.Transmitters);
-                Add(rows, d, "Tx", Ecu(d.ReqTx), msgTx.Length == 0 ? d.Emitter : msgTx, mismatchesOnly, exact: true);
+                Add(rows, d, "Tx", ReferenceDataLoader.NormEcu(d.ReqTx), msgTx.Length == 0 ? d.Emitter : msgTx, mismatchesOnly, exact: true);
             }
             if (d.ReqRx.Length > 0)
-                Add(rows, d, "Rx", Ecu(d.ReqRx), d.Receiver, mismatchesOnly, exact: true);
+                Add(rows, d, "Rx", ReferenceDataLoader.NormEcu(d.ReqRx), d.Receiver, mismatchesOnly, exact: true);
             if (d.ReqUnavailableValue.Length > 0)
                 Add(rows, d, "Unavailable value", d.ReqUnavailableValue, sig?.UnavailableValue ?? "", mismatchesOnly);
             if (d.ReqNetworkPath.Length > 0)
@@ -84,12 +82,12 @@ public sealed class PropertyComparisonService
         return rows;
     }
 
-    private static void Add(List<CompareRow> rows, IsrDemand d, string prop, string isr, string msg, bool mismatchesOnly, bool exact = false)
+    private static void Add(List<CompareRow> rows, IsrDemand d, string prop, string? isr, string? msg, bool mismatchesOnly, bool exact = false)
     {
         bool match = exact
             ? (isr ?? "").Trim().Equals((msg ?? "").Trim(), StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(msg)
             : Same(isr, msg);
         if (mismatchesOnly && match) return;
-        rows.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr, msg, match));
+        rows.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr ?? "", msg ?? "", match));
     }
 }

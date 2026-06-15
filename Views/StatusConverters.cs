@@ -149,3 +149,24 @@ public sealed class WorstSeverityToRowBrushConverter : IValueConverter
     public object ConvertBack(object? v, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
     private static SolidColorBrush New(string h) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(h)!); b.Freeze(); return b; }
 }
+
+/// <summary>Inverse bool -> Visibility (Visible if false, Collapsed if true).</summary>
+public sealed class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => (value is bool b && !b) ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Page key -> Visibility (Visible if active page matches parameter, else Collapsed).</summary>
+public sealed class ActivePageToVisibilityConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => string.Equals(value as string, parameter as string, StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+

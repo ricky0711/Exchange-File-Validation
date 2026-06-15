@@ -236,7 +236,7 @@ public sealed class ReferenceDataLoader
                 sawValue = true;
                 if (!trSet.Contains(v)) allTr = false;
             }
-            if (sawValue && allTr) ecuCols.Add((c, hname));
+            if (sawValue && allTr) ecuCols.Add((c, NormEcu(hname)));
         }
 
         var list = new List<SignalDef>();
@@ -353,8 +353,8 @@ public sealed class ReferenceDataLoader
             {
                 IsrNumber = isr,
                 Feature = m.Get(row, cFeat),
-                Transmitter = m.Get(row, cTx),
-                Receiver = m.Get(row, cRx),
+                Transmitter = NormEcu(m.Get(row, cTx)),
+                Receiver = NormEcu(m.Get(row, cRx)),
                 Frame = m.Get(row, cFrame),
                 Parameter = m.Get(row, cParam),
                 AsilLevel = m.Get(row, cAsil),
@@ -382,7 +382,7 @@ public sealed class ReferenceDataLoader
             if (name.Length == 0) continue;
             list.Add(new EcuDicoEntry
             {
-                Name = name,
+                Name = NormEcu(name),
                 Code = m.Get(row, cCode),
                 IsrStatusName = m.Get(row, cStatus),
                 Different = m.Get(row, cDiff).Equals("yes", StringComparison.OrdinalIgnoreCase),
@@ -421,7 +421,7 @@ public sealed class ReferenceDataLoader
             var route = new NetworkRoute
             {
                 PduName = pdu, FrameName = m.Get(row, cFrame),
-                Transmitter = m.Get(row, cTx), Receiver = m.Get(row, cRx),
+                Transmitter = NormEcu(m.Get(row, cTx)), Receiver = NormEcu(m.Get(row, cRx)),
                 SynthesisPath = m.Get(row, cSyn),
             };
             foreach (var (col, name) in segCols)
@@ -462,12 +462,12 @@ public sealed class ReferenceDataLoader
             list.Add(new ContainerFrame
             {
                 FrameName = name, FrameId = m.Get(row, cId), FrameType = m.Get(row, cType),
-                TxUnit = m.Get(row, cTx), Mac = m.Get(row, cMac), TransmissionType = m.Get(row, cTt),
+                TxUnit = NormEcu(m.Get(row, cTx)), Mac = m.Get(row, cMac), TransmissionType = m.Get(row, cTt),
                 Period = m.Get(row, cPer), ExclTime = m.Get(row, cExcl),
                 OriginalId = m.Get(row, cOrigId), ContainedPdu = pdu,
                 OriginalLength = m.Get(row, cOrigLen), OriginalTransmissionType = m.Get(row, cOrigTt),
                 OriginalPeriod = m.Get(row, cOrigPer), OriginalExclTime = m.Get(row, cOrigExcl),
-                OriginalTxUnit = m.Get(row, cOrigTx),
+                OriginalTxUnit = NormEcu(m.Get(row, cOrigTx)),
             });
         }
         return list;
@@ -479,7 +479,7 @@ public sealed class ReferenceDataLoader
         ["PIU_Mst"] = "PIU_MASTER", ["PIU_Hood"] = "PIU_HOOD", ["PIU_Sub"] = "PIU_SUB",
     };
 
-    private static string NormEcu(string name)
+    public static string NormEcu(string name)
         => EcuNameMap.TryGetValue((name ?? "").Trim(), out var v) ? v : (name ?? "").Trim();
 
     /// <summary>Load the incoming ISR demands from the main "ExchangeFile" sheet (exact match, not the _L3/_Diff variants).</summary>

@@ -5,48 +5,343 @@
              xmlns:views="clr-namespace:ExchangeFileValidator.Views">
     <UserControl.Resources>
         <views:StringToBrushConverter x:Key="StrToBrush" />
+        <views:SeverityToBrushConverter x:Key="SeverityToBrush" />
+        <views:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis" />
     </UserControl.Resources>
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Margin="28,22,28,22">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    
+    <Grid>
+        <!-- Welcome/Placeholder view (shown when no data is loaded) -->
+        <Grid Visibility="{Binding IsDataLoaded, Converter={StaticResource InverseBoolToVis}}" Margin="28">
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                    CornerRadius="16" Padding="40" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="600"
+                    Effect="{StaticResource SoftShadow}">
+                <StackPanel HorizontalAlignment="Center">
+                    <!-- Icon or graphical element -->
+                    <Border Width="64" Height="64" CornerRadius="32" Background="#106D5DF5" Margin="0,0,0,24" HorizontalAlignment="Center">
+                        <ui:SymbolIcon Symbol="DatabaseSearch24" FontSize="32" Foreground="#6D5DF5" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="Welcome to Exchange File Validator" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10" />
+                    <TextBlock Text="This utility validates ISR interface demands against the network Message List. It assigns implementation levels, verifies parameter mappings, analyzes CRC/Clock compliance, checks network routes, and gates exports for PREEvision import." 
+                               TextAlignment="Center" Opacity="0.7" LineHeight="20" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,28" />
+                    
+                    <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+                        <TextBlock Text="To begin, choose the files in the load bar above and click Load." HorizontalAlignment="Center" FontWeight="SemiBold" Opacity="0.8" />
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
 
-            <StackPanel Grid.Row="0" Margin="0,0,0,20">
-                <TextBlock Text="Validation Overview" FontSize="22" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding Headline}" Opacity="0.7" Margin="0,6,0,0" TextWrapping="Wrap" />
-            </StackPanel>
+        <!-- Main Dashboard Control Center -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding IsDataLoaded, Converter={StaticResource BoolToVis}}">
+            <Grid Margin="28,22,28,28">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-            <!-- top KPI strip -->
-            <ItemsControl Grid.Row="1" ItemsSource="{Binding Kpis}" Margin="0,0,0,8">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
+                <!-- Header headline strip -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,22">
+                    <TextBlock Text="Diagnostic Control Center" FontSize="24" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Headline}" Opacity="0.75" FontSize="13" Margin="0,6,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Main Columns Grid -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="360" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT SIDE: Metrics KPI list & Level Distribution Chart -->
+                    <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                        <!-- KPI Card Grid -->
+                        <ItemsControl ItemsSource="{Binding Kpis}" Margin="0,0,0,16">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="3" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ui:Card Margin="0,0,14,14" Padding="0" ClipToBounds="True"
+                                             Effect="{StaticResource SoftShadow}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="5" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="{Binding Color, Converter={StaticResource StrToBrush}}" />
+                                            <StackPanel Grid.Column="1" Margin="16,14,16,14">
+                                                <TextBlock Text="{Binding Title}" Opacity="0.6" FontSize="11" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Value}" FontSize="28" FontWeight="Bold" Margin="0,4,0,2"
+                                                           Foreground="{Binding Color, Converter={StaticResource StrToBrush}}" />
+                                                <TextBlock Text="{Binding Detail}" Opacity="0.5" FontSize="11" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </ui:Card>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Level Distribution Chart Card -->
                         <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="12" Margin="0,0,14,8" Padding="0" ClipToBounds="True"
-                                Effect="{StaticResource SoftShadow}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="6" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" Background="{Binding Color, Converter={StaticResource StrToBrush}}" />
-                                <StackPanel Grid.Column="1" Margin="16,16,16,16">
-                                    <TextBlock Text="{Binding Title}" Opacity="0.55" FontSize="12" />
-                                    <TextBlock Text="{Binding Value}" FontSize="26" FontWeight="SemiBold" Margin="0,6,0,2"
-                                               Foreground="{Binding Color, Converter={StaticResource StrToBrush}}" />
-                                    <TextBlock Text="{Binding Detail}" Opacity="0.5" FontSize="11" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Grid>
+                                CornerRadius="12" Padding="20" Effect="{StaticResource SoftShadow}">
+                            <StackPanel>
+                                <TextBlock Text="Demand Classification (Level Distribution)" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,16" />
+                                
+                                <!-- L1 Card -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Level 1 (Already Mapped &amp; Transmitted)" FontWeight="SemiBold" FontSize="12" Opacity="0.9" />
+                                        <TextBlock Grid.Column="1" FontSize="12">
+                                            <Run Text="{Binding L1Count}" FontWeight="Bold" />
+                                            <Run Text=" demands (" Foreground="Gray" />
+                                            <Run Text="{Binding L1Percent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" />
+                                            <Run Text=")" Foreground="Gray" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Height="8" Value="{Binding L1Percent}" Minimum="0" Maximum="100" Margin="0,5,0,0"
+                                                 Background="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="0">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#00A4B4" Offset="0" />
+                                                <GradientStop Color="#00E5FF" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </Grid>
+
+                                <!-- L2 Card -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Level 2 (Applied Signal, New Transmitter/Receiver)" FontWeight="SemiBold" FontSize="12" Opacity="0.9" />
+                                        <TextBlock Grid.Column="1" FontSize="12">
+                                            <Run Text="{Binding L2Count}" FontWeight="Bold" />
+                                            <Run Text=" demands (" Foreground="Gray" />
+                                            <Run Text="{Binding L2Percent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" />
+                                            <Run Text=")" Foreground="Gray" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Height="8" Value="{Binding L2Percent}" Minimum="0" Maximum="100" Margin="0,5,0,0"
+                                                 Background="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="0">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#6D5DF5" Offset="0" />
+                                                <GradientStop Color="#8F80FF" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </Grid>
+
+                                <!-- L0 Card -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Level 0 (Reactivations &amp; Legacy Fits)" FontWeight="SemiBold" FontSize="12" Opacity="0.9" />
+                                        <TextBlock Grid.Column="1" FontSize="12">
+                                            <Run Text="{Binding L0Count}" FontWeight="Bold" />
+                                            <Run Text=" demands (" Foreground="Gray" />
+                                            <Run Text="{Binding L0Percent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" />
+                                            <Run Text=")" Foreground="Gray" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Height="8" Value="{Binding L0Percent}" Minimum="0" Maximum="100" Margin="0,5,0,0"
+                                                 Background="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="0">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#1565C0" Offset="0" />
+                                                <GradientStop Color="#42A5F5" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </Grid>
+
+                                <!-- L2.1 Card -->
+                                <Grid Margin="0,0,0,14">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Level 2.1 (Present in 2nd Architecture Only)" FontWeight="SemiBold" FontSize="12" Opacity="0.9" />
+                                        <TextBlock Grid.Column="1" FontSize="12">
+                                            <Run Text="{Binding L21Count}" FontWeight="Bold" />
+                                            <Run Text=" demands (" Foreground="Gray" />
+                                            <Run Text="{Binding L21Percent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" />
+                                            <Run Text=")" Foreground="Gray" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Height="8" Value="{Binding L21Percent}" Minimum="0" Maximum="100" Margin="0,5,0,0"
+                                                 Background="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="0">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#EF8C00" Offset="0" />
+                                                <GradientStop Color="#FFB74D" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </Grid>
+
+                                <!-- L3 Card -->
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Level 3 (Genuinely New Signals)" FontWeight="SemiBold" FontSize="12" Opacity="0.9" />
+                                        <TextBlock Grid.Column="1" FontSize="12">
+                                            <Run Text="{Binding L3Count}" FontWeight="Bold" />
+                                            <Run Text=" demands (" Foreground="Gray" />
+                                            <Run Text="{Binding L3Percent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" />
+                                            <Run Text=")" Foreground="Gray" />
+                                        </TextBlock>
+                                    </Grid>
+                                    <ProgressBar Grid.Row="1" Height="8" Value="{Binding L3Percent}" Minimum="0" Maximum="100" Margin="0,5,0,0"
+                                                 Background="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="0">
+                                        <ProgressBar.Foreground>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#E53935" Offset="0" />
+                                                <GradientStop Color="#FF7043" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </ProgressBar.Foreground>
+                                    </ProgressBar>
+                                </Grid>
+                            </StackPanel>
                         </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Grid>
-    </ScrollViewer>
+                    </StackPanel>
+
+                    <!-- RIGHT SIDE: Health status card & Interactive findings list -->
+                    <StackPanel Grid.Column="1">
+                        <!-- Validation Health Gauge Card -->
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="12" Padding="20" Margin="0,0,0,16" Effect="{StaticResource SoftShadow}">
+                            <StackPanel>
+                                <TextBlock Text="Validation Health Index" FontSize="14" FontWeight="SemiBold" Opacity="0.75" Margin="0,0,0,16" />
+                                
+                                <!-- Center Circular Gauge -->
+                                <Grid Height="140" Margin="0,0,0,16">
+                                    <!-- A background ring and foreground progress ring centered -->
+                                    <ui:ProgressRing Progress="100"
+                                                     Width="110" Height="110"
+                                                     Foreground="{DynamicResource ControlFillColorDefaultBrush}" />
+                                    <ui:ProgressRing Progress="{Binding HealthPercent}"
+                                                     Width="110" Height="110"
+                                                     Foreground="{Binding HealthColor, Converter={StaticResource StrToBrush}}" />
+                                    
+                                    <!-- Centered readout -->
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
+                                                   Foreground="{Binding HealthColor, Converter={StaticResource StrToBrush}}">
+                                            <Run Text="{Binding HealthPercent, StringFormat='{}{0:F0}'}" />
+                                            <Run Text="%" FontSize="16" />
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding HealthStatus}" FontSize="10" FontWeight="SemiBold" Opacity="0.8" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Automated Checks Passed" FontSize="12" Opacity="0.8" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ChecksPassPercent, StringFormat='{}{0:F1}%'}" FontWeight="SemiBold" FontSize="12" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Critical Findings Card -->
+                        <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="12" Padding="20" Effect="{StaticResource SoftShadow}">
+                            <StackPanel>
+                                <TextBlock Text="Critical Issues Overview" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,14" />
+                                
+                                <!-- Empty state when clean -->
+                                <StackPanel Visibility="{Binding HasRecentFindings, Converter={StaticResource InverseBoolToVis}}" Height="150" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="CheckmarkCircle24" FontSize="36" Foreground="#2E9E5B" HorizontalAlignment="Center" Margin="0,30,0,10" />
+                                    <TextBlock Text="No Critical Findings" FontWeight="SemiBold" Opacity="0.8" HorizontalAlignment="Center" />
+                                    <TextBlock Text="All analyzed checks are clean." FontSize="11" Opacity="0.5" HorizontalAlignment="Center" />
+                                </StackPanel>
+
+                                <!-- Interactive List of top findings -->
+                                <ListBox ItemsSource="{Binding RecentFindings}" BorderThickness="0" Background="Transparent"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         Visibility="{Binding HasRecentFindings, Converter={StaticResource BoolToVis}}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <ui:Card Margin="0,0,0,8" Padding="12" HorizontalAlignment="Stretch">
+                                                <ui:Card.InputBindings>
+                                                    <MouseBinding MouseAction="LeftClick"
+                                                                  Command="{Binding DataContext.SelectFindingCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                  CommandParameter="{Binding}" />
+                                                </ui:Card.InputBindings>
+                                                <Grid Cursor="Hand">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" CornerRadius="4" Padding="6,2" Height="20" VerticalAlignment="Top" Margin="0,0,10,0"
+                                                            Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}">
+                                                        <TextBlock Text="{Binding Severity}" Foreground="White" FontSize="10" FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock FontSize="12" FontWeight="SemiBold">
+                                                            <Run Text="{Binding Isr, StringFormat='ISR {0}'}" />
+                                                            <Run Text=" · " />
+                                                            <Run Text="{Binding Signal}" />
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Message}" FontSize="11" Opacity="0.8" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </ui:Card>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                
+                                <TextBlock Text="Click an item to jump to validation details." Opacity="0.45" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

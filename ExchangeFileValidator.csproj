@@ -9,6 +9,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>ExchangeFileValidator</AssemblyName>
     <RootNamespace>ExchangeFileValidator</RootNamespace>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <!-- Add when you have an icon: <ApplicationIcon>Assets\app.ico</ApplicationIcon> -->
   </PropertyGroup>
 
@@ -19,6 +20,11 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <!-- Excel loading (read-only into models; no Excel automation) -->
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="bin\**;obj\**;tools\**" />
+    <None Remove="bin\**;obj\**;tools\**" />
   </ItemGroup>
 
 </Project>

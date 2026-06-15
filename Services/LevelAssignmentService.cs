@@ -17,7 +17,7 @@ namespace ExchangeFileValidator.Services;
 /// </summary>
 public sealed class LevelAssignmentService
 {
-    private static string Key(params string[] parts) =>
+    private static string Key(params string?[] parts) =>
         string.Join("|", parts.Select(p => (p ?? "").Trim().ToUpperInvariant()));
 
     public void Assign(IEnumerable<IsrDemand> demands, ReferenceData data, HashSet<string>? secondArchSignals = null)
@@ -59,7 +59,7 @@ public sealed class LevelAssignmentService
                 // Signal exists in the AT but this Tx/Rx is not yet applied ⇒ still L2 (new Tx and/or Rx).
                 Set(d, IsrLevel.Level2, "L2 (new Tx) — signal exists in Message List; this Tx/Rx not yet applied (new Tx ⇒ verify same-channel rule).");
             }
-            else if (secondArchSignals is not null && secondArchSignals.Contains(d.ParameterProposal))
+            else if (secondArchSignals is not null && secondArchSignals.Contains(d.ParameterProposal ?? ""))
             {
                 Set(d, IsrLevel.Level2_1, "Signal present in the second architecture's Message List.");
             }

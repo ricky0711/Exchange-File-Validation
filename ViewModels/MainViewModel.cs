@@ -42,6 +42,16 @@ public partial class MainViewModel : ObservableObject
         Checklist.OnRerun = () => _ = RunPipelineAsync(false);
         Checklist.OnNavigate = NavigateToCheck;
 
+        Dashboard.OnSelectFinding = row =>
+        {
+            if (!IsLoaded) return;
+            Validation.FocusOn(row.Rule, "All");
+            Validation.Search = row.Isr;
+            Validation.SelectedSearchField = "ISR";
+            CurrentPage = Validation;
+            ActivePage = "Validation";
+        };
+
         // The Exchange File page now owns level/fill re-run (merged from the old Level + Property Fill pages).
         ExchangeFile.OnRerun = () => _ = RunPipelineAsync(true);
         ExchangeFile.OnLoadSecondArch = () => _ = LoadSecondArchitecture();
@@ -66,6 +76,23 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _exchangeFilePath = "";
     [ObservableProperty] private string _msgSetPath = "";
     [ObservableProperty] private string _isrAppliedPath = "";
+
+    public string ExchangeFileName => string.IsNullOrEmpty(ExchangeFilePath) ? "Select file..." : System.IO.Path.GetFileName(ExchangeFilePath);
+    public string MsgSetFileName => string.IsNullOrEmpty(MsgSetPath) ? "Select file..." : System.IO.Path.GetFileName(MsgSetPath);
+    public string IsrAppliedFileName => string.IsNullOrEmpty(IsrAppliedPath) ? "Select file..." : System.IO.Path.GetFileName(IsrAppliedPath);
+
+    public bool IsExchangeFileSelected => !string.IsNullOrEmpty(ExchangeFilePath);
+    public bool IsMsgSetSelected => !string.IsNullOrEmpty(MsgSetPath);
+    public bool IsIsrAppliedSelected => !string.IsNullOrEmpty(IsrAppliedPath);
+
+    [ObservableProperty] private bool _isFileConfigExpanded = true;
+
+    [RelayCommand]
+    private void ToggleFileConfig()
+    {
+        IsFileConfigExpanded = !IsFileConfigExpanded;
+    }
+
 
     public string[] Architectures { get; } = { "C1A", "C1A-HS", "C1A-HS evo", "N FACE" };
     [ObservableProperty] private string _selectedArchitecture = "C1A-HS";
@@ -247,8 +274,25 @@ public partial class MainViewModel : ObservableObject
     private bool CanLoad() => !IsBusy && File_Exists(ExchangeFilePath) && File_Exists(MsgSetPath) && File_Exists(IsrAppliedPath);
     private static bool File_Exists(string p) => !string.IsNullOrWhiteSpace(p) && System.IO.File.Exists(p);
 
-    partial void OnExchangeFilePathChanged(string value) => LoadCommand.NotifyCanExecuteChanged();
-    partial void OnMsgSetPathChanged(string value) => LoadCommand.NotifyCanExecuteChanged();
-    partial void OnIsrAppliedPathChanged(string value) => LoadCommand.NotifyCanExecuteChanged();
+    partial void OnExchangeFilePathChanged(string value)
+    {
+        LoadCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ExchangeFileName));
+        OnPropertyChanged(nameof(IsExchangeFileSelected));
+    }
+
+    partial void OnMsgSetPathChanged(string value)
+    {
+        LoadCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(MsgSetFileName));
+        OnPropertyChanged(nameof(IsMsgSetSelected));
+    }
+
+    partial void OnIsrAppliedPathChanged(string value)
+    {
+        LoadCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(IsrAppliedFileName));
+        OnPropertyChanged(nameof(IsIsrAppliedSelected));
+    }
     partial void OnIsBusyChanged(bool value) => LoadCommand.NotifyCanExecuteChanged();
 }

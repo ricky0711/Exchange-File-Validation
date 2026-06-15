@@ -10,6 +10,7 @@
 
     <ui:FluentWindow.Resources>
         <controls:ActivePageToAppearanceConverter x:Key="ActiveAppearance" />
+        <views:ActivePageToVisibilityConverter x:Key="ActiveToVis" />
         <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
             <views:DashboardView />
         </DataTemplate>
@@ -49,37 +50,210 @@
         <ui:TitleBar Grid.Row="0" Title="Exchange File Validator" />
 
         <!-- Global load bar -->
+        <!-- Collapsible File Configuration Card -->
         <ui:Card Grid.Row="1" Padding="14" Margin="16,8,16,4">
             <StackPanel>
-                <Grid Margin="0,0,0,8">
+                <!-- Always visible header -->
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Exchange File" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8" />
-                    <ui:TextBox Grid.Column="1" Text="{Binding ExchangeFilePath}" IsReadOnly="True" Margin="0,0,4,0" PlaceholderText="demands…" />
-                    <ui:Button Grid.Column="2" Content="…" Command="{Binding PickExchangeFileCommand}" Margin="0,0,14,0" />
-                    <TextBlock Grid.Column="3" Text="Msg Set / PDU" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8" />
-                    <ui:TextBox Grid.Column="4" Text="{Binding MsgSetPath}" IsReadOnly="True" Margin="0,0,4,0" PlaceholderText="Message List + Network Path + Dico…" />
-                    <ui:Button Grid.Column="5" Content="…" Command="{Binding PickMsgSetCommand}" Margin="0,0,14,0" />
-                    <TextBlock Grid.Column="6" Text="ISR Applied" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8" />
-                    <ui:TextBox Grid.Column="7" Text="{Binding IsrAppliedPath}" IsReadOnly="True" Margin="0,0,4,0" PlaceholderText="applied ISRs…" />
-                    <ui:Button Grid.Column="8" Content="…" Command="{Binding PickIsrAppliedCommand}" />
+                    
+                    <!-- Title and status indicator -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Red/green dot indicator -->
+                        <Ellipse Width="10" Height="10" Margin="0,0,10,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#E53935" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLoaded}" Value="True">
+                                            <Setter Property="Fill" Value="#2E9E5B" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="Data Source Configuration" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        
+                        <!-- Mini status readout when collapsed -->
+                        <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.6" FontSize="12">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Pending configuration" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsLoaded}" Value="True">
+                                            <Setter Property="Text" Value="Active Workspace Ready" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                    
+                    <!-- Controls and toggle button -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Arch:" VerticalAlignment="Center" Margin="0,0,6,0" Opacity="0.8" FontSize="12" />
+                        <ComboBox Width="120" ItemsSource="{Binding Architectures}" SelectedItem="{Binding SelectedArchitecture}" Margin="0,0,12,0" />
+                        
+                        <ui:ProgressRing IsIndeterminate="True" Width="20" Height="20" Margin="0,0,10,0"
+                                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                        
+                        <ui:Button Content="Load" Appearance="Primary" Command="{Binding LoadCommand}" Margin="0,0,12,0" />
+                        
+                        <!-- Toggle Expand Button -->
+                        <ui:Button Command="{Binding ToggleFileConfigCommand}" Padding="8,6">
+                            <ui:Button.Content>
+                                <ui:SymbolIcon Symbol="ChevronDown24">
+                                    <ui:SymbolIcon.Style>
+                                        <Style TargetType="ui:SymbolIcon">
+                                            <Setter Property="Symbol" Value="ChevronDown24" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFileConfigExpanded}" Value="True">
+                                                    <Setter Property="Symbol" Value="ChevronUp24" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:SymbolIcon.Style>
+                                </ui:SymbolIcon>
+                            </ui:Button.Content>
+                        </ui:Button>
+                    </StackPanel>
                 </Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock Text="Architecture" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.8" />
-                    <ComboBox Width="150" ItemsSource="{Binding Architectures}" SelectedItem="{Binding SelectedArchitecture}" Margin="0,0,16,0" />
-                    <ui:ProgressRing IsIndeterminate="True" Width="20" Height="20" Margin="0,0,10,0"
-                                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
-                    <ui:Button Content="Load" Appearance="Primary" Command="{Binding LoadCommand}" />
-                </StackPanel>
+                
+                <!-- Expanded cards container -->
+                <Grid Margin="0,14,0,0" Visibility="{Binding IsFileConfigExpanded, Converter={StaticResource BoolToVis}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Card 1: Exchange File -->
+                    <Border Grid.Column="0" Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="0,0,8,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ui:SymbolIcon Grid.Column="0" Symbol="DocumentTable24" Foreground="#3D5AFE" FontSize="18" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="EXCHANGE FILE (DEMANDS)" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                
+                                <!-- Selection indicator icon -->
+                                <ui:SymbolIcon Grid.Column="2" Symbol="CheckmarkCircle24" Foreground="#2E9E5B" VerticalAlignment="Center">
+                                    <ui:SymbolIcon.Style>
+                                        <Style TargetType="ui:SymbolIcon">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsExchangeFileSelected}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:SymbolIcon.Style>
+                                </ui:SymbolIcon>
+                            </Grid>
+                            
+                            <TextBlock Grid.Row="1" Text="{Binding ExchangeFileName}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10" VerticalAlignment="Center" Height="34" />
+                            
+                            <ui:Button Grid.Row="2" Content="Choose File..." HorizontalAlignment="Stretch" Command="{Binding PickExchangeFileCommand}" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Card 2: Message Set / PDU -->
+                    <Border Grid.Column="1" Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="4,0,4,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ui:SymbolIcon Grid.Column="0" Symbol="DatabaseSearch24" Foreground="#6D5DF5" FontSize="18" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="MESSAGE LIST / PDUs" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                
+                                <!-- Selection indicator icon -->
+                                <ui:SymbolIcon Grid.Column="2" Symbol="CheckmarkCircle24" Foreground="#2E9E5B" VerticalAlignment="Center">
+                                    <ui:SymbolIcon.Style>
+                                        <Style TargetType="ui:SymbolIcon">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMsgSetSelected}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:SymbolIcon.Style>
+                                </ui:SymbolIcon>
+                            </Grid>
+                            
+                            <TextBlock Grid.Row="1" Text="{Binding MsgSetFileName}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10" VerticalAlignment="Center" Height="34" />
+                            
+                            <ui:Button Grid.Row="2" Content="Choose File..." HorizontalAlignment="Stretch" Command="{Binding PickMsgSetCommand}" />
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Card 3: Applied ISRs -->
+                    <Border Grid.Column="2" Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="8,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ui:SymbolIcon Grid.Column="0" Symbol="ClipboardCheckmark24" Foreground="#00A4B4" FontSize="18" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="APPLIED ISR REFERENCE" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                
+                                <!-- Selection indicator icon -->
+                                <ui:SymbolIcon Grid.Column="2" Symbol="CheckmarkCircle24" Foreground="#2E9E5B" VerticalAlignment="Center">
+                                    <ui:SymbolIcon.Style>
+                                        <Style TargetType="ui:SymbolIcon">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsIsrAppliedSelected}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:SymbolIcon.Style>
+                                </ui:SymbolIcon>
+                            </Grid>
+                            
+                            <TextBlock Grid.Row="1" Text="{Binding IsrAppliedFileName}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,10" VerticalAlignment="Center" Height="34" />
+                            
+                            <ui:Button Grid.Row="2" Content="Choose File..." HorizontalAlignment="Stretch" Command="{Binding PickIsrAppliedCommand}" />
+                        </Grid>
+                    </Border>
+                </Grid>
             </StackPanel>
         </ui:Card>
 
@@ -94,41 +268,140 @@
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
                 <StackPanel Margin="12,16">
                     <TextBlock Text="WORKSPACE" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,0,0,6" />
-                    <ui:Button Content="  Dashboard" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Dashboard}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavDashboardCommand}"
-                               Icon="{ui:SymbolIcon Home24}" />
-                    <ui:Button Content="  Reference Data" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Reference}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavReferenceCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Database24}" />
-                    <ui:Button Content="  Explorer" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Explorer}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExplorerCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Layer24}" />
-                    <ui:Button Content="  Frame Layout" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=FrameView}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavFrameViewCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
+                    
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Dashboard}" />
+                        <ui:Button Grid.Column="1" Content="  Dashboard" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Dashboard}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavDashboardCommand}"
+                                   Icon="{ui:SymbolIcon Home24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Reference}" />
+                        <ui:Button Grid.Column="1" Content="  Reference Data" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Reference}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavReferenceCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Database24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Explorer}" />
+                        <ui:Button Grid.Column="1" Content="  Explorer" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Explorer}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavExplorerCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Layer24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=FrameView}" />
+                        <ui:Button Grid.Column="1" Content="  Frame Layout" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=FrameView}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavFrameViewCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
+                    </Grid>
+
                     <TextBlock Text="VALIDATION" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />
-                    <ui:Button Content="  Exchange File" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Exchange}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExchangeCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
-                    <ui:Button Content="  Validation" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Validation}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavValidationCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon CheckmarkCircle24}" />
-                    <ui:Button Content="  Checklist" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Checklist}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavChecklistCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Clipboard24}" />
-                    <ui:Button Content="  ISR vs Message Set" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=IsrVsMsgSet}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavIsrVsMsgSetCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowSwap24}" />
-                    <ui:Button Content="  Other Requirements" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=OtherReq}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavOtherReqCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon TextBulletListSquare24}" />
-                    <ui:Button Content="  Export" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Export}" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding NavExportCommand}"
-                               IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowExport24}" />
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Exchange}" />
+                        <ui:Button Grid.Column="1" Content="  Exchange File" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Exchange}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavExchangeCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Table24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Validation}" />
+                        <ui:Button Grid.Column="1" Content="  Validation" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Validation}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavValidationCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon CheckmarkCircle24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Checklist}" />
+                        <ui:Button Grid.Column="1" Content="  Checklist" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Checklist}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavChecklistCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon Clipboard24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=IsrVsMsgSet}" />
+                        <ui:Button Grid.Column="1" Content="  ISR vs Message Set" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=IsrVsMsgSet}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavIsrVsMsgSetCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowSwap24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=OtherReq}" />
+                        <ui:Button Grid.Column="1" Content="  Other Requirements" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=OtherReq}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavOtherReqCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon TextBulletListSquare24}" />
+                    </Grid>
+
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" CornerRadius="2" Margin="0,4"
+                                Visibility="{Binding ActivePage, Converter={StaticResource ActiveToVis}, ConverterParameter=Export}" />
+                        <ui:Button Grid.Column="1" Content="  Export" Appearance="{Binding ActivePage, Converter={StaticResource ActiveAppearance}, ConverterParameter=Export}" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding NavExportCommand}"
+                                   IsEnabled="{Binding IsLoaded}" Icon="{ui:SymbolIcon ArrowExport24}" />
+                    </Grid>
+
                     <TextBlock Text="MORE" Opacity="0.45" FontSize="10" FontWeight="SemiBold" Margin="8,12,0,6" />
-                    <ui:Button Content="  Light / Dark" Appearance="Transparent" HorizontalAlignment="Stretch"
-                               HorizontalContentAlignment="Left" Margin="0,2" Command="{Binding ToggleThemeCommand}"
-                               Icon="{ui:SymbolIcon DarkTheme24}" />
+                    
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="4" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ui:Button Grid.Column="1" Content="  Light / Dark" Appearance="Transparent" HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Left" Command="{Binding ToggleThemeCommand}"
+                                   Icon="{ui:SymbolIcon DarkTheme24}" />
+                    </Grid>
 
                     <Separator Margin="4,16" />
                     <TextBlock Text="{Binding Status}" Opacity="0.7" FontSize="11" TextWrapping="Wrap" Margin="8,0" />

@@ -561,9 +561,9 @@ public sealed class ValidationService
             if (string.IsNullOrWhiteSpace(d.OtherRequirements)) continue;
             checkedN++;
             // Tx / Rx must match the demand's emitter / receiver (ECU names already normalized)
-            if (d.ReqTx.Length > 0 && !Eq(NormEcuLocal(d.ReqTx), d.Emitter))
+            if (d.ReqTx.Length > 0 && !Eq(ReferenceDataLoader.NormEcu(d.ReqTx), d.Emitter))
             { err++; d.Results.Add(new ValidationResult("Other Req", Severity.Error, $"OtherReq Tx '{d.ReqTx}' != Emitter '{d.Emitter}'.")); }
-            if (d.ReqRx.Length > 0 && !Eq(NormEcuLocal(d.ReqRx), d.Receiver))
+            if (d.ReqRx.Length > 0 && !Eq(ReferenceDataLoader.NormEcu(d.ReqRx), d.Receiver))
             { err++; d.Results.Add(new ValidationResult("Other Req", Severity.Error, $"OtherReq Rx '{d.ReqRx}' != Receiver '{d.Receiver}'.")); }
 
             // UnavailableValue format: hex (0x) for >4-bit signals, binary (0b) otherwise
@@ -583,9 +583,7 @@ public sealed class ValidationService
         return Sum("Main validation", "Other Requirements (Tx/Rx/UV)", checkedN, err, warn, "Other Req");
     }
 
-    private static readonly Dictionary<string, string> EcuMap = new(StringComparer.OrdinalIgnoreCase)
-    { ["PIU_Mst"] = "PIU_MASTER", ["PIU_Hood"] = "PIU_HOOD", ["PIU_Sub"] = "PIU_SUB" };
-    private static string NormEcuLocal(string n) => EcuMap.TryGetValue((n ?? "").Trim(), out var v) ? v : (n ?? "").Trim();
+
 
     private static bool Eq(string a, string b) => (a ?? "").Trim().Equals((b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
 

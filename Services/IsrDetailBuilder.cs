@@ -11,9 +11,7 @@ public sealed class IsrDetailBuilder
 {
     private readonly SignalDataParser _parser = new();
 
-    private static readonly Dictionary<string, string> EcuMap = new(StringComparer.OrdinalIgnoreCase)
-    { ["PIU_Mst"] = "PIU_MASTER", ["PIU_Hood"] = "PIU_HOOD", ["PIU_Sub"] = "PIU_SUB" };
-    private static string Ecu(string n) => EcuMap.TryGetValue((n ?? "").Trim(), out var v) ? v : (n ?? "").Trim();
+
 
     /// <summary>Blank-tolerant, numeric-aware equality (mirrors PropertyComparisonService.Same).</summary>
     private static bool Same(string a, string b)
@@ -53,8 +51,8 @@ public sealed class IsrDetailBuilder
             detail.Props.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr, at, info || Same(isr, at)));
         }
 
-        Row("Transmitter (Tx)", Ecu(d.ReqTx.Length > 0 ? d.ReqTx : d.Emitter), atTx.Length > 0 ? atTx : "");
-        Row("Receiver (Rx)", Ecu(d.ReqRx.Length > 0 ? d.ReqRx : d.Receiver), atRx);
+        Row("Transmitter (Tx)", ReferenceDataLoader.NormEcu(d.ReqTx.Length > 0 ? d.ReqTx : d.Emitter), atTx.Length > 0 ? atTx : "");
+        Row("Receiver (Rx)", ReferenceDataLoader.NormEcu(d.ReqRx.Length > 0 ? d.ReqRx : d.Receiver), atRx);
         Row("Frame", d.Frame, sig?.FrameName ?? "");
         Row("PDU", "", sig?.PduName ?? "");
         Row("Size (bits)", isrBits, sig?.SignalSizeBits?.ToString() ?? "");

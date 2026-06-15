@@ -51,6 +51,18 @@ public sealed class SignalDataParser
         return null;
     }
 
+    private static void ApplyAnalogField(Parsed p, string key, string val)
+    {
+        switch (MatchField(key))
+        {
+            case "unit": p.Unit = val; break;
+            case "min": p.Min = val; break;
+            case "max": p.Max = val; break;
+            case "resolution": p.Resolution = val; break;
+            case "offset": p.Offset = val; break;
+        }
+    }
+
     public Parsed Parse(string logicalData, string analogData)
     {
         var p = new Parsed();
@@ -59,17 +71,28 @@ public sealed class SignalDataParser
         if (!string.IsNullOrWhiteSpace(analogData))
         {
             p.HasAnalog = true;
-            foreach (Match m in Bracketed.Matches(analogData))
+            var matches = Bracketed.Matches(analogData);
+            if (matches.Count > 0)
             {
-                var key = NormKey(m.Groups[1].Value);
-                var val = m.Groups[2].Value.Trim();
-                switch (MatchField(key))
+                foreach (Match m in matches)
                 {
-                    case "unit": p.Unit = val; break;
-                    case "min": p.Min = val; break;
-                    case "max": p.Max = val; break;
-                    case "resolution": p.Resolution = val; break;
-                    case "offset": p.Offset = val; break;
+                    var key = NormKey(m.Groups[1].Value);
+                    var val = m.Groups[2].Value.Trim();
+                    ApplyAnalogField(p, key, val);
+                }
+            }
+            else
+            {
+                var pairs = analogData.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var pair in pairs)
+                {
+                    var parts = pair.Split(new[] { '=', ':' }, 2);
+                    if (parts.Length == 2)
+                    {
+                        var key = NormKey(parts[0]);
+                        var val = parts[1].Trim();
+                        ApplyAnalogField(p, key, val);
+                    }
                 }
             }
         }
@@ -80,14 +103,36 @@ public sealed class SignalDataParser
             p.HasLogical = true;
             var codes = new List<string>();
             var meanings = new List<string>();
-            foreach (Match m in Bracketed.Matches(logicalData))
+            var matches = Bracketed.Matches(logicalData);
+            if (matches.Count > 0)
             {
-                var key = m.Groups[1].Value.Trim();
-                var val = m.Groups[2].Value.Trim();
-                if (key.StartsWith("Etat", StringComparison.OrdinalIgnoreCase) || key.StartsWith("State", StringComparison.OrdinalIgnoreCase))
+                foreach (Match m in matches)
                 {
-                    codes.Add(key);
-                    meanings.Add(val);
+                    var key = m.Groups[1].Value.Trim();
+                    var val = m.Groups[2].Value.Trim();
+                    if (key.StartsWith("Etat", StringComparison.OrdinalIgnoreCase) || key.StartsWith("State", StringComparison.OrdinalIgnoreCase))
+                    {
+                        codes.Add(key);
+                        meanings.Add(val);
+                    }
+                }
+            }
+            else
+            {
+                var pairs = logicalData.Split(new[] { ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var pair in pairs)
+                {
+                    var parts = pair.Split(new[] { '=', ':' }, 2);
+                    if (parts.Length == 2)
+                    {
+                        var key = parts[0].Trim();
+                        var val = parts[1].Trim();
+                        if (key.StartsWith("Etat", StringComparison.OrdinalIgnoreCase) || key.StartsWith("State", StringComparison.OrdinalIgnoreCase))
+                        {
+                            codes.Add(key);
+                            meanings.Add(val);
+                        }
+                    }
                 }
             }
             if (codes.Count > 0)
