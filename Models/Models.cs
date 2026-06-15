@@ -11,6 +11,7 @@ public sealed class SignalDef
     public string PduName { get; set; } = "";          // "Contained I-PDU Name"
     public string BytePosition { get; set; } = "";     // Byte Position in ContainedPDU
     public string BitPosition { get; set; } = "";      // Bit Position in ContainedPDU
+    public int? FrameSize { get; set; }                // Frame Size / DLC (bytes), if present
     public int? SignalSizeBits { get; set; }
     public string ValueType { get; set; } = "";
     public string Coding { get; set; } = "";

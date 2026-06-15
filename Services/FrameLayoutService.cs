@@ -81,37 +81,43 @@ public sealed class FrameLayoutService
         int usedBits = 0;
         foreach (var s in sigs)
         {
-            if (!int.TryParse(s.BytePosition.Trim(), out var startByte)) continue;
-            if (!int.TryParse(s.BitPosition.Trim(), out var startBit)) continue;
-            int size = s.SignalSizeBits ?? 0;
-            if (size <= 0 || startBit < 0 || startBit > 7 || startByte < 0) continue;
-
-            string kind = s.IsFiller ? "filler" : s.IsCrc ? "crc" : s.IsClock ? "clock" : "app";
-            var block = new SignalBlock
+            try
             {
-                Sig = s, StartByte = startByte, StartBit = startBit, Size = size,
-                Kind = kind, ColorIndex = ColorOf(s.PduName),
-            };
+                if (!int.TryParse(s.BytePosition.Trim(), out var startByte)) continue;
+                if (!int.TryParse(s.BitPosition.Trim(), out var startBit)) continue;
+                int size = s.SignalSizeBits ?? 0;
+                if (size <= 0 || startBit < 0 || startBit > 7 || startByte < 0) continue;
 
-            // Motorola/MSB segmentation across byte boundaries.
-            int remaining = size, byteIdx = startByte, bit = startBit;
-            while (remaining > 0)
-            {
-                int lo = Math.Max(0, bit - remaining + 1);
-                int span = bit - lo + 1;
-                block.Segments.Add(new FrameCellSegment { Byte = byteIdx, ColStart = 7 - bit, Span = span });
-                remaining -= span;
-                observedMaxByte = Math.Max(observedMaxByte, byteIdx);
-                byteIdx++; bit = 7;
-                if (byteIdx > 64) break;   // safety
+                string kind = s.IsFiller ? "filler" : s.IsCrc ? "crc" : s.IsClock ? "clock" : "app";
+                var block = new SignalBlock
+                {
+                    Sig = s, StartByte = startByte, StartBit = startBit, Size = size,
+                    Kind = kind, ColorIndex = ColorOf(s.PduName),
+                };
+
+                // Motorola/MSB segmentation across byte boundaries.
+                int remaining = size, byteIdx = startByte, bit = startBit;
+                while (remaining > 0)
+                {
+                    int lo = Math.Max(0, bit - remaining + 1);
+                    int span = bit - lo + 1;
+                    block.Segments.Add(new FrameCellSegment { Byte = byteIdx, ColStart = 7 - bit, Span = span });
+                    remaining -= span;
+                    observedMaxByte = Math.Max(observedMaxByte, byteIdx);
+                    byteIdx++; bit = 7;
+                    if (byteIdx > 64) break;   // safety
+                }
+                if (kind != "filler") usedBits += size;
+                blocks.Add(block);
             }
-            if (kind != "filler") usedBits += size;
-            blocks.Add(block);
+            catch { /* one malformed row must not blank the whole view */ }
         }
 
-        int typeDefault = rep.IsFd || isContainer ? Math.Min(64, observedMaxByte + 1) : 8;
-        int byteCount = Math.Max(observedMaxByte + 1, rep.IsFd || isContainer ? typeDefault : 8);
-        byteCount = Math.Clamp(byteCount, 1, 64);
+        // Frame length: explicit Frame Size if present, else observed extent, else type default (CAN=8, FD≤64).
+        int declared = sigs.Select(s => s.FrameSize).FirstOrDefault(v => v is > 0) ?? 0;
+        int typeDefault = rep.IsFd || isContainer ? 64 : 8;
+        int byteCount = declared > 0 ? declared : Math.Max(observedMaxByte + 1, rep.IsFd || isContainer ? observedMaxByte + 1 : 8);
+        byteCount = Math.Clamp(byteCount == 0 ? typeDefault : byteCount, 1, 64);
 
         var layout = new FrameLayout
         {

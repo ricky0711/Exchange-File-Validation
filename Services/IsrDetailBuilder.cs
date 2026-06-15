@@ -62,7 +62,7 @@ public sealed class IsrDetailBuilder
         Row("Min", p.Min, sig?.Min ?? "");
         Row("Max", p.Max, sig?.Max ?? "");
         Row("Resolution", p.Resolution, sig?.Resolution ?? "");
-        Row("Coding", p.Coding, sig?.Coding ?? "", info: true);     // logical states vs binary coding — not directly comparable
+        // Coding is NOT compared — the ISR side (Logical/Analog) carries no coding string (Fix 4).
         Row("Meaning", p.Meaning, sig?.Meaning ?? "", info: true);  // multi-line free text — show, don't flag
         Row("Period", "", sig?.Period ?? "");
         Row("Functional (AT)", "", sig is null ? "" : (sig.Functional ? "functional" : "non-functional"), info: true);

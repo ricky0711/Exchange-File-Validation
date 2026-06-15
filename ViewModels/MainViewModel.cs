@@ -84,11 +84,12 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ToggleTheme()
     {
-        IsDarkTheme = !IsDarkTheme;
-        var theme = IsDarkTheme ? ApplicationTheme.Dark : ApplicationTheme.Light;
-        ApplicationThemeManager.Apply(theme);
-        ApplicationAccentColorManager.Apply(
-            (Color)ColorConverter.ConvertFromString("#6D5DF5")!, theme);
+        // Drive from the ACTUAL current theme so it stays robust across many switches (not a local bool).
+        var current = ApplicationThemeManager.GetAppTheme();
+        var target = current == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark;
+        ApplicationThemeManager.Apply(target);
+        ApplicationAccentColorManager.Apply((Color)ColorConverter.ConvertFromString("#6D5DF5")!, target);
+        IsDarkTheme = target == ApplicationTheme.Dark;
     }
 
     [RelayCommand] private void NavExchange() { if (IsLoaded) { CurrentPage = ExchangeFile; ActivePage = "Exchange"; } }

@@ -29,6 +29,22 @@ public sealed class ColumnMap
         return 0;
     }
 
+    /// <summary>Like <see cref="Col"/> but, if no exact match, falls back to a header that CONTAINS a candidate
+    /// (handles suffixed headers such as "Bit Position in ContainedPDU (7 to 0)").</summary>
+    public int ColLike(params string[] candidates)
+    {
+        var exact = Col(candidates);
+        if (exact != 0) return exact;
+        foreach (var c in candidates)
+        {
+            var nc = Norm(c);
+            if (nc.Length == 0) continue;
+            foreach (var kv in _byName)
+                if (kv.Key.Contains(nc, StringComparison.OrdinalIgnoreCase)) return kv.Value;
+        }
+        return 0;
+    }
+
     public string Get(IXLRow row, int col) => col == 0 ? "" : row.Cell(col).GetString().Trim();
 }
 
@@ -185,9 +201,10 @@ public sealed class ReferenceDataLoader
         int cSig = m.Col("Signal Name"), cFrame = m.Col("Frame Name"), cId = m.Col("Frame ID (Hex)", "Frame ID");
         int cContainer = m.Col("Frame Container");
         int cType = m.Col("Frame Type"), cPdu = m.Col("Contained I-PDU Name", "PDU Name");
-        int cByte = m.Col("Byte Position in ContainedPDU", "Byte Position", "Start Byte");
-        int cBit = m.Col("Bit Position in ContainedPDU", "Bit Position", "Start Bit");
-        int cSize = m.Col("Signal Size (Bits)"), cVt = m.Col("Value Type (Sign)", "Value Type");
+        int cByte = m.ColLike("Byte Position in ContainedPDU", "Byte Position", "Start Byte");
+        int cBit = m.ColLike("Bit Position in ContainedPDU", "Bit Position", "Start Bit");
+        int cSize = m.ColLike("Signal Size (Bits)", "Signal Size", "Size (Bits)"), cVt = m.Col("Value Type (Sign)", "Value Type");
+        int cFrameSize = m.ColLike("Frame Size", "Frame Length", "DLC");
         int cCode = m.Col("Coding (Bin/Hex)", "Coding"), cMean = m.Col("Meaning"), cUnit = m.Col("Unit");
         int cRes = m.Col("Resolution (Dec)", "Resolution"), cOff = m.Col("Offset (Dec)", "Offset");
         int cMin = m.Col("Min (Dec)", "Min"), cMax = m.Col("Max (Dec)", "Max");
@@ -195,7 +212,7 @@ public sealed class ReferenceDataLoader
         int cFunc = m.Col("Functional");
 
         // --- ECU node columns: any other header whose data cells contain only T / R marks ---
-        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc };
+        var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc, cFrameSize };
         var ecuCols = new List<(int col, string name)>();
         var trSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "T", "R", "T/R", "TR", "T-R" };
         int lastHeaderCol = header.LastCellUsed()?.Address.ColumnNumber ?? 1;
@@ -233,6 +250,7 @@ public sealed class ReferenceDataLoader
                 PduName = m.Get(row, cPdu),
                 BytePosition = m.Get(row, cByte),
                 BitPosition = m.Get(row, cBit),
+                FrameSize = int.TryParse(m.Get(row, cFrameSize), out var fsz) ? fsz : null,
                 SignalSizeBits = int.TryParse(m.Get(row, cSize), out var b) ? b : null,
                 ValueType = m.Get(row, cVt),
                 Coding = m.Get(row, cCode),

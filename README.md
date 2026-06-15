@@ -9,6 +9,12 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 4. The grid fills with all signals from the Message List — type in the search box to filter (signal / frame / PDU). Virtualization keeps 27k rows smooth.
 
 
+## v2 — Step 8 (fixes)
+- **1 Frame view renders** — root cause: the `Byte/Bit Position` headers carry suffixes (e.g. "… (7 to 0)") so exact `ColumnMap` matching missed them. Added `ColumnMap.ColLike` (exact → contains fallback) and used it for Byte/Bit/Signal-Size + a new `Frame Size` column (→ `SignalDef.FrameSize`). `FrameLayoutService` now resolves length from Frame Size → observed extent → type default, guards each row in try/catch, and the view shows an **empty-state** (not a blank page) when a frame has no layout data.
+- **2 Theme toggle robust** — now reads `ApplicationThemeManager.GetAppTheme()` (not a desyncing local bool) and re-applies theme + accent every toggle. Custom tints were already theme-safe translucent ARGB (no cached theme brushes).
+- **3 No warning for the CAN / *C_FD / *SC_FD trio** — the multiplicity note is suppressed when all matched frames share the **same Contained I-PDU** (the standard variant set); it only fires when the instances span **different PDUs**.
+- **4 Coding dropped from AT comparison** — the ISR side has no coding string, so the per-ISR detail no longer shows a Coding row; unit/min/max/resolution and size/states/meaning still compared.
+
 ## v2 — Step 7 (Explorer + Frame-layout view)
 
 ### Feature 1 — Hierarchical Explorer (PDU → Frame → Signal → ISR)

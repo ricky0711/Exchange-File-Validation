@@ -41,12 +41,33 @@ public partial class FrameView : UserControl
 
     private void Rebuild()
     {
+        try { RebuildCore(); }
+        catch (Exception ex) { ShowMessage("Could not render this frame: " + ex.Message); }
+    }
+
+    private void ShowMessage(string text)
+    {
+        Matrix.Children.Clear();
+        Matrix.ColumnDefinitions.Clear();
+        Matrix.RowDefinitions.Clear();
+        Matrix.ColumnDefinitions.Add(new ColumnDefinition());
+        Matrix.RowDefinitions.Add(new RowDefinition());
+        Matrix.Children.Add(new TextBlock
+        {
+            Text = text, Opacity = 0.6, Margin = new Thickness(16),
+            TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Left,
+        });
+    }
+
+    private void RebuildCore()
+    {
         Matrix.Children.Clear();
         Matrix.ColumnDefinitions.Clear();
         Matrix.RowDefinitions.Clear();
         _segmentBorders.Clear();
         var layout = _vm?.Layout;
-        if (layout is null || !layout.HasFrame) return;
+        if (layout is null || !layout.HasFrame) { ShowMessage("No frame selected. Open a frame from the Explorer, or search a frame name above."); return; }
+        if (layout.Blocks.Count == 0) { ShowMessage($"'{layout.FrameName}' has no byte/bit layout data (Byte/Bit Position or Signal Size missing on its rows)."); return; }
 
         // Columns: byte label + 8 bit columns.
         Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });

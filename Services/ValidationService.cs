@@ -199,11 +199,15 @@ public sealed class ValidationService
         foreach (var d in demands)
         {
             if (d.MatchedFrames.Count <= 1) continue;
+            // The standard CAN / *C_FD / *SC_FD variant set of the SAME Contained I-PDU is normal — no note.
+            var pdus = d.MatchedFrames.Select(f => f.PduName).Where(p => p.Length > 0)
+                                      .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (pdus.Count <= 1) continue;
             checkedN++;
             var frames = string.Join(", ", d.MatchedFrames.Select(f =>
                 f.FrameName + (string.IsNullOrEmpty(f.FrameType) ? "" : $" [{f.FrameType}]")));
             d.Results.Add(new ValidationResult("Frame multiplicity", Severity.Info,
-                $"Signal maps into {d.MatchedFrames.Count} frames: {frames}. Matched → {d.MatchedDef?.FrameName ?? "?"}."));
+                $"Signal maps into {d.MatchedFrames.Count} frames across different PDUs: {frames}. Matched → {d.MatchedDef?.FrameName ?? "?"}."));
         }
         return Sum("Main validation", "Signal frame multiplicity", checkedN, 0, 0, "Frame multiplicity");
     }
