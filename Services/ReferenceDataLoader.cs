@@ -195,9 +195,12 @@ public sealed class ReferenceDataLoader
         using var wb = new XLWorkbook(path);
         // "Message List all PDU" is the superset (one row per signal/PDU/frame, proper Unavailable-Value/Coding
         // columns, Frame Container linkage). Prefer it; fall back to the older "(FD+HS) all CAN" sheet.
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("all PDU"))
-              ?? wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("FD+HS"))
-              ?? throw new InvalidOperationException("No 'Message List' sheet found.");
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("fd+hs", StringComparison.OrdinalIgnoreCase) || w.Name.Contains("fd + hs", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("all CAN", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("all PDU", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("message set", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("message list", StringComparison.OrdinalIgnoreCase))
+              ?? throw new InvalidOperationException("No 'Message List' or 'Message Set' sheet found.");
 
         var header = ws.Row(1);
         var m = new ColumnMap(header);
@@ -286,7 +289,7 @@ public sealed class ReferenceDataLoader
 
     public List<AppliedIsr> LoadAppliedIsrs(IXLWorkbook wb)
     {
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("applied"))
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("applied", StringComparison.OrdinalIgnoreCase))
               ?? wb.Worksheets.FirstOrDefault(w => new ColumnMap(w.Row(1)).Col("ISR N°", "ISR_Number", "ISR Number") > 0)
               ?? wb.Worksheets.FirstOrDefault();
         var list = new List<AppliedIsr>();
@@ -368,7 +371,7 @@ public sealed class ReferenceDataLoader
 
     public List<EcuDicoEntry> LoadDico(IXLWorkbook wb)
     {
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name) == "Dico");
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Equals("Dico", StringComparison.OrdinalIgnoreCase));
         var list = new List<EcuDicoEntry>();
         if (ws is null) return list;
         var m = new ColumnMap(ws.Row(1));
@@ -393,7 +396,7 @@ public sealed class ReferenceDataLoader
 
     public List<NetworkRoute> LoadRoutes(IXLWorkbook wb)
     {
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Network Path"));
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("Network Path", StringComparison.OrdinalIgnoreCase));
         var list = new List<NetworkRoute>();
         if (ws is null) return list;
         var header = ws.Row(1);
@@ -435,8 +438,10 @@ public sealed class ReferenceDataLoader
     /// <summary>Load the "Construction of Container frame" assembly layer (header is on row 4 in the FACE workbook).</summary>
     public List<ContainerFrame> LoadContainers(IXLWorkbook wb)
     {
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Construction"))
-              ?? wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Contains("Container frame"));
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("Construction", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("Container frame", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Equals("coc", StringComparison.OrdinalIgnoreCase) || w.Name.Contains("coc", StringComparison.OrdinalIgnoreCase))
+              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("container", StringComparison.OrdinalIgnoreCase));
         var list = new List<ContainerFrame>();
         if (ws is null) return list;
 
@@ -485,7 +490,7 @@ public sealed class ReferenceDataLoader
     /// <summary>Load the incoming ISR demands from the main "ExchangeFile" sheet (exact match, not the _L3/_Diff variants).</summary>
     public List<IsrDemand> LoadDemands(IXLWorkbook wb)
     {
-        var ws = wb.Worksheets.FirstOrDefault(w => ColumnMap.Norm(w.Name).Equals("ExchangeFile", StringComparison.OrdinalIgnoreCase));
+        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Equals("ExchangeFile", StringComparison.OrdinalIgnoreCase));
         var list = new List<IsrDemand>();
         if (ws is null) return list;
         var m = new ColumnMap(ws.Row(1));
