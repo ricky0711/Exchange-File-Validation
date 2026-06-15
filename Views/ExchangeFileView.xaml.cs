@@ -12,6 +12,8 @@ public partial class ExchangeFileView : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        // Keep the selected row visible when Prev/Next moves the selection (Fix 5).
+        Grid.SelectionChanged += (_, _) => { if (Grid.SelectedItem is not null) Grid.ScrollIntoView(Grid.SelectedItem); };
     }
 
     private void OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)

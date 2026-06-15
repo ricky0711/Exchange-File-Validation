@@ -61,14 +61,40 @@ public partial class ExchangeFileViewModel : ObservableObject
             + $"     Fill — {fc.filled} filled  {fc.pending} pending L2.1  {fc.newSig} new";
     }
 
+    [ObservableProperty] private string _positionText = "";
+
     partial void OnSelectedDemandChanged(IsrDemand? value)
     {
         AtDef = null;
-        if (value is null || _data is null) return;
-        if (_data.SignalByName.TryGetValue(value.ParameterProposal ?? "", out var sig)) AtDef = sig;
-        else if (_data.SecondArchByName is not null
-                 && _data.SecondArchByName.TryGetValue(value.ParameterProposal ?? "", out var sig2)) AtDef = sig2;
+        if (value is not null && _data is not null)
+        {
+            if (_data.SignalByName.TryGetValue(value.ParameterProposal ?? "", out var sig)) AtDef = sig;
+            else if (_data.SecondArchByName is not null
+                     && _data.SecondArchByName.TryGetValue(value.ParameterProposal ?? "", out var sig2)) AtDef = sig2;
+        }
+        UpdatePosition();
     }
+
+    private List<IsrDemand> Visible() => DemandsView.Cast<IsrDemand>().ToList();
+    private int CurrentIndex() => SelectedDemand is null ? -1 : Visible().IndexOf(SelectedDemand);
+
+    private void UpdatePosition()
+    {
+        var vis = Visible();
+        int idx = SelectedDemand is null ? -1 : vis.IndexOf(SelectedDemand);
+        PositionText = idx >= 0 ? $"{idx + 1} / {vis.Count}" : (vis.Count > 0 ? $"– / {vis.Count}" : "0 / 0");
+        NextCommand.NotifyCanExecuteChanged();
+        PrevCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool CanNext() { int i = CurrentIndex(); return i >= 0 && i < Visible().Count - 1; }
+    private bool CanPrev() => CurrentIndex() > 0;
+
+    [RelayCommand(CanExecute = nameof(CanNext))]
+    private void Next() { var vis = Visible(); int i = vis.IndexOf(SelectedDemand!); if (i >= 0 && i < vis.Count - 1) SelectedDemand = vis[i + 1]; }
+
+    [RelayCommand(CanExecute = nameof(CanPrev))]
+    private void Prev() { var vis = Visible(); int i = vis.IndexOf(SelectedDemand!); if (i > 0) SelectedDemand = vis[i - 1]; }
 
     public void SetData(ReferenceData data)
     {
@@ -114,6 +140,7 @@ public partial class ExchangeFileViewModel : ObservableObject
         int warn = vis.Count(d => d.WorstSeverity == Severity.Warning);
         int clean = vis.Count(d => d.WorstSeverity is null);
         Summary = $"{vis.Count} demands (filtered)  •  {clean} clean, {warn} warning, {err} error";
+        UpdatePosition();
     }
 
     private bool Filter(object obj)

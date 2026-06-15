@@ -70,12 +70,38 @@ public sealed class IsrDetailBuilder
         Row("Network path", d.ReqNetworkPath, "");
         Row("Change mgmt n°", d.ReqChangeMgmt, "");
 
+        // Fix 6: group findings into category cards (worst-severity header), most-severe group first.
+        var groups = new Dictionary<string, FindingGroup>();
+        foreach (var r in d.Results)
+        {
+            var cat = Category(r.Rule);
+            if (!groups.TryGetValue(cat, out var g)) { g = new FindingGroup { Category = cat }; groups[cat] = g; }
+            g.Items.Add(r);
+            if (r.Severity > g.HeaderSeverity) g.HeaderSeverity = r.Severity;
+        }
+        foreach (var g in groups.Values.OrderByDescending(x => x.HeaderSeverity).ThenBy(x => x.Category, StringComparer.Ordinal))
+            detail.Groups.Add(g);
+
         d.Detail = detail;
 
         // Provisional "Ready to import" gate: a demand is ready unless it has a blocking Error finding.
         // (Real Alliance gate is an explicit column — reconcile when a sample export is available.)
         d.ImportStatus = d.WorstSeverity == Severity.Error ? "Blocked (errors)" : "Ready to import";
     }
+
+    private static string Category(string rule) => rule switch
+    {
+        "Empty field" or "Logical/Analog" or "Whitespace" => "Empty / format",
+        "Duplicate ISR" or "ECU code (Dico)" => "Basic checks",
+        "Level" or "Multisender (L2)" or "New Tx channel" or "L3 frame" => "Level",
+        "Signal in AT" or "Signal name case" or "Coding/bit-size" or "Analog bit-size"
+            or "Magic signal" or "Update time" or "Frame multiplicity" or "L2.1 layout"
+            or "Functional status" => "AT validation",
+        "Other Req" => "Other Requirements",
+        "Network route" => "Route",
+        "Container/ASIL" => "Container / ASIL",
+        _ => "Other",
+    };
 
     private static string Badge(string kind, string state, bool onFrame) => state switch
     {

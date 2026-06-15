@@ -14,6 +14,8 @@ Fluent (WinUI-3 look) WPF tool to validate ISR demands against the Message List.
 - **2 Theme toggle robust** — now reads `ApplicationThemeManager.GetAppTheme()` (not a desyncing local bool) and re-applies theme + accent every toggle. Custom tints were already theme-safe translucent ARGB (no cached theme brushes).
 - **3 No warning for the CAN / *C_FD / *SC_FD trio** — the multiplicity note is suppressed when all matched frames share the **same Contained I-PDU** (the standard variant set); it only fires when the instances span **different PDUs**.
 - **4 Coding dropped from AT comparison** — the ISR side has no coding string, so the per-ISR detail no longer shows a Coding row; unit/min/max/resolution and size/states/meaning still compared.
+- **5 Prev / Next ISR review** — the expand panel gains **◀ Prev / Next ▶** buttons (and **← / →** shortcuts) that step the selection through the **current filtered list** with a "12 / 480" position, disabled at the ends, grid selection + scroll kept in sync.
+- **6 Grouped issue cards** — the run-on findings list is replaced by **category cards** (Empty/format, Basic, Level, AT validation, Other Requirements, Route, Container/ASIL) ordered worst-severity first; each card has a coloured header + count, and lists rule + message with a per-item severity chip (`IsrDetail.Groups`, built in `IsrDetailBuilder`). Empty categories are omitted.
 
 ## v2 — Step 7 (Explorer + Frame-layout view)
 

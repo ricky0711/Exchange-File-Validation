@@ -256,11 +256,23 @@ public sealed class IsrDetail
     /// <summary>Property-by-property comparison rows (ISR value vs Message-Set value, with a Match flag).</summary>
     public List<CompareRow> Props { get; } = new();
 
+    /// <summary>Findings grouped into category cards for the detail panel (Fix 6).</summary>
+    public List<FindingGroup> Groups { get; } = new();
+
     // CRC / Clock badges (text + state for colouring): state ∈ { reuse, new, present, "" }
     public string CrcBadge { get; init; } = "";
     public string CrcState { get; init; } = "";
     public string ClkBadge { get; init; } = "";
     public string ClkState { get; init; } = "";
+}
+
+/// <summary>A category card of findings for the per-ISR detail panel (Fix 6).</summary>
+public sealed class FindingGroup
+{
+    public string Category { get; init; } = "";
+    public List<ValidationResult> Items { get; } = new();
+    public Severity HeaderSeverity { get; set; }
+    public int Count => Items.Count;
 }
 
 /// <summary>One row of the validation checklist dashboard.</summary>
