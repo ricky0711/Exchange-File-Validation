@@ -73,10 +73,9 @@ public sealed class PropertyComparisonService
                 Add(rows, d, "Unavailable value", d.ReqUnavailableValue, sig?.UnavailableValue ?? "", mismatchesOnly);
             if (d.ReqNetworkPath.Length > 0)
             {
-                var route = data.Routes.FirstOrDefault(r =>
-                    r.Transmitter.Equals(d.Emitter, StringComparison.OrdinalIgnoreCase) &&
-                    r.Receiver.Equals(d.Receiver, StringComparison.OrdinalIgnoreCase));
-                Add(rows, d, "Network path", d.ReqNetworkPath, route?.SynthesisPath ?? "", mismatchesOnly);
+                var cont = sig is null ? null : FrameTraceService.ResolveContainer(sig, data);
+                var route = FrameTraceService.ResolveRoute(d, sig, cont, data);
+                AddNetworkPathRow(rows, d, d.ReqNetworkPath, route?.SynthesisPath ?? "", mismatchesOnly);
             }
         }
         return rows;
@@ -89,5 +88,23 @@ public sealed class PropertyComparisonService
             : Same(isr, msg);
         if (mismatchesOnly && match) return;
         rows.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, prop, isr ?? "", msg ?? "", match));
+    }
+
+    public static string NormalizePath(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return "";
+        var normalized = path
+            .Replace("=>", ">")
+            .Replace("->", ">")
+            .Replace("=>", ">")
+            .Replace("→", ">");
+        return System.Text.RegularExpressions.Regex.Replace(normalized, @"\s+", "");
+    }
+
+    private static void AddNetworkPathRow(List<CompareRow> rows, IsrDemand d, string reqPath, string actualPath, bool mismatchesOnly)
+    {
+        bool match = NormalizePath(reqPath).Equals(NormalizePath(actualPath), StringComparison.OrdinalIgnoreCase);
+        if (mismatchesOnly && match) return;
+        rows.Add(new CompareRow(d.IsrNumber, d.ParameterProposal, "Network path", reqPath, actualPath, match));
     }
 }

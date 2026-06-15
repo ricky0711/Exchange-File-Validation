@@ -18,8 +18,8 @@
                     Effect="{StaticResource SoftShadow}">
                 <StackPanel HorizontalAlignment="Center">
                     <!-- Icon or graphical element -->
-                    <Border Width="64" Height="64" CornerRadius="32" Background="#106D5DF5" Margin="0,0,0,24" HorizontalAlignment="Center">
-                        <ui:SymbolIcon Symbol="DatabaseSearch24" FontSize="32" Foreground="#6D5DF5" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border CornerRadius="12" ClipToBounds="True" Width="400" Height="260" Margin="0,0,0,24" BorderThickness="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" HorizontalAlignment="Center">
+                        <Image Source="/Users/rickysharma/.gemini/antigravity-ide/brain/a30d9a13-4cbe-49b5-9adf-5766b33bfaf0/validation_welcome_hero_1781532285822.png" Stretch="UniformToFill" />
                     </Border>
                     <TextBlock Text="Welcome to Exchange File Validator" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,10" />
                     <TextBlock Text="This utility validates ISR interface demands against the network Message List. It assigns implementation levels, verifies parameter mappings, analyzes CRC/Clock compliance, checks network routes, and gates exports for PREEvision import." 

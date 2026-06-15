@@ -193,6 +193,11 @@ public sealed class ReferenceDataLoader
     {
         progress?.Report("Opening Message List…");
         using var wb = new XLWorkbook(path);
+        return LoadMessageList(wb, progress);
+    }
+
+    public List<SignalDef> LoadMessageList(IXLWorkbook wb, IProgress<string>? progress = null)
+    {
         // "Message List all PDU" is the superset (one row per signal/PDU/frame, proper Unavailable-Value/Coding
         // columns, Frame Container linkage). Prefer it; fall back to the older "(FD+HS) all CAN" sheet.
         var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("fd+hs", StringComparison.OrdinalIgnoreCase) || w.Name.Contains("fd + hs", StringComparison.OrdinalIgnoreCase))
@@ -218,7 +223,7 @@ public sealed class ReferenceDataLoader
         int cRes = m.Col("Resolution (Dec)", "Resolution"), cOff = m.Col("Offset (Dec)", "Offset");
         int cMin = m.Col("Min (Dec)", "Min"), cMax = m.Col("Max (Dec)", "Max");
         int cTx = m.Col("Transmission Type"), cPer = m.Col("Period (ms)", "Period"), cExcl = m.Col("Excl. Time (ms)", "Excl. Time");
-        int cFunc = m.Col("Functional"), cEvent = m.Col("Event");
+        int cFunc = m.Col("Functional"), cEvent = m.Col("Event"), cProtocol = m.Col("Protocol");
 
         // --- ECU node columns: any other header whose data cells contain only T / R marks ---
         var known = new HashSet<int> { cSig, cFrame, cId, cContainer, cType, cPdu, cByte, cBit, cSize, cVt, cCode, cMean, cUnit, cUnavail, cRes, cOff, cMin, cMax, cTx, cPer, cExcl, cFunc, cEvent, cFrameSize };
@@ -274,6 +279,7 @@ public sealed class ReferenceDataLoader
                 TransmissionType = m.Get(row, cTx),
                 Period = m.Get(row, cPer),
                 ExclTime = m.Get(row, cExcl),
+                Protocol = m.Get(row, cProtocol),
                 FunctionalFlag = m.Get(row, cFunc),
             };
             foreach (var (col, ecuName) in ecuCols)
@@ -307,7 +313,7 @@ public sealed class ReferenceDataLoader
         var known = new HashSet<int> { cIsr, cFeat, cTx, cRx, cFrame, cParam, cAsil, cClk, cCrc };
         bool IsLegend(string h) => h.Contains("Use", StringComparison.OrdinalIgnoreCase)
                                 && h.Contains("Abandon", StringComparison.OrdinalIgnoreCase);
-        var trancheRe = new System.Text.RegularExpressions.Regex(@"^T\d", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var trancheRe = new System.Text.RegularExpressions.Regex(@"\bT\d|_T\d", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         var trancheCols = new List<int>();
         for (int c = 1; c <= lastCol; c++)
         {
@@ -549,6 +555,12 @@ public sealed class ReferenceDataLoader
     /// and a standalone ISR-Applied file. Headers are unchanged; only the file boundaries moved.</summary>
     public ReferenceData LoadV2(string exchangeFilePath, string msgSetPath, string isrAppliedPath, IProgress<string>? progress = null)
     {
+        if (exchangeFilePath.Equals(msgSetPath, StringComparison.OrdinalIgnoreCase) &&
+            msgSetPath.Equals(isrAppliedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return LoadConsolidated(exchangeFilePath, progress);
+        }
+
         var data = new ReferenceData();
 
         progress?.Report("Loading Message List (msg set)…");
@@ -575,6 +587,42 @@ public sealed class ReferenceDataLoader
             data.Demands.AddRange(LoadDemands(exWb));
 
         System.Diagnostics.Debug.WriteLine("[Load counts] " + data.Summary);   // proves the 'all PDU' switch lost nothing
+        progress?.Report("Done. " + data.Summary);
+        return data;
+    }
+
+    /// <summary>Loads everything that lives inside a single consolidated Exchange File workbook in a single open.</summary>
+    public ReferenceData LoadConsolidated(string path, IProgress<string>? progress = null)
+    {
+        var data = new ReferenceData();
+        progress?.Report("Opening Consolidated Workbook…");
+        using (var wb = new XLWorkbook(path))
+        {
+            progress?.Report("Loading Message List…");
+            data.Signals.AddRange(LoadMessageList(wb, progress));
+            data.IndexSignals();
+
+            progress?.Report("Loading Dico…");
+            data.Dico.AddRange(LoadDico(wb));
+
+            progress?.Report("Loading Network Path…");
+            data.Routes.AddRange(LoadRoutes(wb));
+
+            progress?.Report("Loading Containers…");
+            data.Containers.AddRange(LoadContainers(wb));
+            data.IndexContainers();
+            data.IndexChannels();
+
+            progress?.Report("Loading Applied ISRs…");
+            data.AppliedIsrs.AddRange(LoadAppliedIsrs(wb));
+            data.IndexFunctional();
+            data.IndexExplorer();
+
+            progress?.Report("Loading Demands…");
+            data.Demands.AddRange(LoadDemands(wb));
+        }
+
+        System.Diagnostics.Debug.WriteLine("[Load counts] " + data.Summary);
         progress?.Report("Done. " + data.Summary);
         return data;
     }

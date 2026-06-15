@@ -10,19 +10,28 @@
     <Grid Margin="24,12,24,16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <ui:Button Content="Run All Checks" Appearance="Primary" Command="{Binding RunCommand}" Margin="0,0,8,0" />
-            <ui:Button Content="Export Report" Command="{Binding ExportReportCommand}" Icon="{ui:SymbolIcon DocumentArrowDown24}" Margin="0,0,12,0" />
-            <TextBlock Text="Validation Checklist" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
-        </StackPanel>
+        <!-- Header Action Card -->
+        <ui:Card Grid.Row="0" Padding="20,16" Margin="0,0,0,14" Effect="{StaticResource SoftShadow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Validation Checklist Control" FontSize="18" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Summary}" Opacity="0.75" FontSize="12.5" Margin="0,4,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:Button Content="Run All Checks" Appearance="Primary" Command="{Binding RunCommand}" Margin="0,0,8,0" />
+                    <ui:Button Content="Export Report..." Command="{Binding ExportReportCommand}" Icon="{ui:SymbolIcon DocumentArrowDown24}" />
+                </StackPanel>
+            </Grid>
+        </ui:Card>
 
-        <TextBlock Grid.Row="1" Text="{Binding Summary}" Opacity="0.85" Margin="2,0,2,12" />
-
-        <ListView Grid.Row="2" ItemsSource="{Binding ItemsView}" BorderThickness="0"
+        <ListView Grid.Row="1" ItemsSource="{Binding ItemsView}" BorderThickness="0"
                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListView.GroupStyle>
                 <GroupStyle>
@@ -50,13 +59,16 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="Card" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                        CornerRadius="6" Padding="14,10" Margin="0,3" Effect="{StaticResource SoftShadow}">
+                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                                        CornerRadius="8" Padding="16,12" Margin="0,4" Effect="{StaticResource SoftShadow}">
                                     <ContentPresenter />
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="Card" Property="Background"
                                                 Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                                        <Setter TargetName="Card" Property="BorderBrush"
+                                                Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

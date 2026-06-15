@@ -1,7 +1,8 @@
 <Application x:Class="ExchangeFileValidator.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:controls="clr-namespace:ExchangeFileValidator.Controls">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -12,6 +13,77 @@
             <!-- Shared soft shadow for card surfaces (consistent depth across pages, reads in light + dark) -->
             <DropShadowEffect x:Key="SoftShadow" BlurRadius="16" ShadowDepth="2" Direction="270"
                               Opacity="0.16" Color="#000000" RenderingBias="Quality" />
+
+            <!-- Excel-style filter column header template to enable native sorting -->
+            <DataTemplate x:Key="ExcelColumnHeaderTemplate" DataType="{x:Type controls:ColumnFilterState}">
+                <DataTemplate.Resources>
+                    <controls:FunnelBrushConverter x:Key="FunnelBrush" />
+                    <controls:EmptyToBlanksConverter x:Key="EmptyToBlanks" />
+                </DataTemplate.Resources>
+                <StackPanel Orientation="Horizontal" Background="Transparent">
+                    <TextBlock Text="{Binding Header}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" IsHitTestVisible="False" />
+
+                    <!-- Funnel: a Button toggles the filter popup -->
+                    <Button x:Name="FunnelButton" Width="18" Height="18" Padding="0" Margin="5,0,0,0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            ToolTip="Filter this column"
+                            Command="{Binding TogglePopupCommand}">
+                        <TextBlock Text="&#xE71C;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                   Foreground="{Binding IsActive, Converter={StaticResource FunnelBrush}}" />
+                    </Button>
+
+                    <Popup IsOpen="{Binding IsPopupOpen, Mode=TwoWay}" StaysOpen="False" Width="250"
+                           PlacementTarget="{Binding ElementName=FunnelButton}" Placement="Bottom"
+                           AllowsTransparency="True" PopupAnimation="Fade">
+                        <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,2,0,0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.25" />
+                            </Border.Effect>
+                            <StackPanel>
+                                <ui:TextBox Text="{Binding PopupSearch, UpdateSourceTrigger=PropertyChanged}"
+                                            PlaceholderText="Search values…" Icon="{ui:SymbolIcon Search24}"
+                                            Margin="0,0,0,8" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <ui:Button Content="Select all" Command="{Binding SelectAllCommand}"
+                                               Padding="8,3" FontSize="11" Margin="0,0,6,0" />
+                                    <ui:Button Content="Clear" Command="{Binding ClearAllCommand}"
+                                               Padding="8,3" FontSize="11" />
+                                    <TextBlock Text="{Binding ValueCount}" VerticalAlignment="Center"
+                                               Margin="8,0,0,0" Opacity="0.55" FontSize="11" />
+                                </StackPanel>
+                                <ListBox ItemsSource="{Binding Values}" MaxHeight="240" BorderThickness="0"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True"
+                                         VirtualizingPanel.VirtualizationMode="Recycling">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                      Content="{Binding Display, Converter={StaticResource EmptyToBlanks}}"
+                                                      Margin="2,1" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                    <ui:Button Content="Clear filter" Command="{Binding ClearColumnFilterCommand}"
+                                               Padding="10,4" FontSize="12" Margin="0,0,6,0" />
+                                    <ui:Button Content="Apply" Appearance="Primary" Command="{Binding ApplyCommand}"
+                                               Padding="12,4" FontSize="12" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </StackPanel>
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -307,14 +307,23 @@ public sealed class ValidationService
         foreach (var d in demands)
         {
             if (string.IsNullOrWhiteSpace(d.UpdateTime)) continue;
-            string period = "", excl = "";
-            if (d.MatchedDef is { } sig) { period = sig.Period; excl = sig.ExclTime; }
+            string period = "", excl = "", ev = "";
+            if (d.MatchedDef is { } sig) { period = sig.Period; excl = sig.ExclTime; ev = sig.Event; }
             checkedN++;
             if (!UpdateTimeRule.Check(d.UpdateTime, period, excl))
             {
                 warn++;
                 d.Results.Add(new ValidationResult("Update time", Severity.Warning,
                     $"UpdateTime '{d.UpdateTime}' inconsistent with period '{period}' / excl '{excl}'."));
+            }
+            if (d.UpdateTime.Contains("Event", StringComparison.OrdinalIgnoreCase))
+            {
+                if (d.MatchedDef is not null && !string.Equals((ev ?? "").Trim(), "x", StringComparison.OrdinalIgnoreCase))
+                {
+                    warn++;
+                    d.Results.Add(new ValidationResult("Update time", Severity.Warning,
+                        $"UpdateTime '{d.UpdateTime}' requests Event, but matched signal Event column is '{ev}' (expected 'x')."));
+                }
             }
         }
         return Sum("Main validation", "Update-time rule", checkedN, 0, warn, "Update time");
@@ -552,7 +561,7 @@ public sealed class ValidationService
         return Sum("Main validation", "L3 digital signal sizing", checkedN, 0, 0, "L3 digital sizing");
     }
 
-    // Point 17 — OtherRequirements (Tx/Rx/UV) must agree with the ISR + signal properties.
+    // Point 17 — OtherRequirements (Tx/Rx/UV/Path) must agree with the ISR + signal properties.
     private CheckSummary CheckOtherRequirements(IReadOnlyList<IsrDemand> demands, ReferenceData data)
     {
         int checkedN = 0, err = 0, warn = 0;
@@ -571,16 +580,37 @@ public sealed class ValidationService
                 && sig.SignalSizeBits is int bits)
             {
                 var uv = d.ReqUnavailableValue.Trim();
-                bool wantHex = bits > 4;
                 bool isHex = uv.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
                 bool isBin = uv.StartsWith("0b", StringComparison.OrdinalIgnoreCase);
-                if (wantHex && !isHex && (isBin || uv.Length > 0))
-                { warn++; d.Results.Add(new ValidationResult("Other Req", Severity.Warning, $"UnavailableValue '{uv}' should be hex (0x) for a {bits}-bit signal.")); }
-                else if (!wantHex && !isBin && isHex)
-                { warn++; d.Results.Add(new ValidationResult("Other Req", Severity.Warning, $"UnavailableValue '{uv}' should be binary (0b) for a {bits}-bit signal.")); }
+                if (bits <= 4 && !isBin)
+                {
+                    warn++;
+                    d.Results.Add(new ValidationResult("Other Req", Severity.Warning,
+                        $"UnavailableValue '{uv}' should start with binary prefix '0b' for signal size {bits} <= 4."));
+                }
+                else if (bits > 4 && !isHex)
+                {
+                    warn++;
+                    d.Results.Add(new ValidationResult("Other Req", Severity.Warning,
+                        $"UnavailableValue '{uv}' should start with hex prefix '0x' for signal size {bits} > 4."));
+                }
+            }
+
+            // NetworkPath must match the computed route synthesis path
+            if (d.ReqNetworkPath.Length > 0)
+            {
+                var matchedSig = d.MatchedDef;
+                var cont = matchedSig is null ? null : FrameTraceService.ResolveContainer(matchedSig, data);
+                var route = FrameTraceService.ResolveRoute(d, matchedSig, cont, data);
+                var computedPath = route?.SynthesisPath ?? "";
+                if (!PropertyComparisonService.NormalizePath(d.ReqNetworkPath).Equals(PropertyComparisonService.NormalizePath(computedPath), StringComparison.OrdinalIgnoreCase))
+                {
+                    warn++;
+                    d.Results.Add(new ValidationResult("Other Req", Severity.Warning, $"OtherReq NetworkPath '{d.ReqNetworkPath}' != computed route '{computedPath}'."));
+                }
             }
         }
-        return Sum("Main validation", "Other Requirements (Tx/Rx/UV)", checkedN, err, warn, "Other Req");
+        return Sum("Main validation", "Other Requirements (Tx/Rx/UV/Path)", checkedN, err, warn, "Other Req");
     }
 
 

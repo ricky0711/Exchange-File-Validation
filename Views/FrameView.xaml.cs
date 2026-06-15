@@ -69,38 +69,60 @@ public partial class FrameView : UserControl
         if (layout is null || !layout.HasFrame) { ShowMessage("No frame selected. Open a frame from the Explorer, or search a frame name above."); return; }
         if (layout.Blocks.Count == 0) { ShowMessage($"'{layout.FrameName}' has no byte/bit layout data (Byte/Bit Position or Signal Size missing on its rows)."); return; }
 
-        // Columns: byte label + 8 bit columns.
-        Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
-        for (int c = 0; c < 8; c++) Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+        int numBlocks = (layout.ByteCount + 7) / 8;
+        if (numBlocks < 1) numBlocks = 1;
 
-        // Rows: header + one per byte.
-        Matrix.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
-        for (int r = 0; r < layout.ByteCount; r++) Matrix.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
-
-        // Bit-label header (7 → 0).
-        for (int c = 0; c < 8; c++)
-            AddText($"{7 - c}", 0, c + 1, FontWeights.SemiBold, 0.6, HorizontalAlignment.Center);
-
-        // Byte labels + empty grid cells.
-        var gridStroke = (Brush)(TryFindResource("CardStrokeColorDefaultBrush") ?? Brushes.Gray);
-        for (int by = 0; by < layout.ByteCount; by++)
+        // Define columns: for each block we need 1 label col (40) + 8 bit cols (46) + 1 separator (16)
+        for (int b = 0; b < numBlocks; b++)
         {
-            AddText($"B{by}", by + 1, 0, FontWeights.Normal, 0.55, HorizontalAlignment.Center);
+            Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
+            for (int c = 0; c < 8; c++) Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            Matrix.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        }
+
+        // Define rows: 1 header row (22) + 8 byte rows (30)
+        Matrix.RowDefinitions.Add(new RowDefinition { Height = new GridLength(22) });
+        for (int r = 0; r < 8; r++) Matrix.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
+
+        // Bit-label headers and empty grid cells for all blocks
+        var gridStroke = (Brush)(TryFindResource("CardStrokeColorDefaultBrush") ?? Brushes.Gray);
+        for (int b = 0; b < numBlocks; b++)
+        {
+            int colOffset = b * 10;
+
+            // Bit headers (7 -> 0)
             for (int c = 0; c < 8; c++)
             {
-                var cell = new Border { BorderBrush = gridStroke, BorderThickness = new Thickness(0.5), Background = Brushes.Transparent };
-                Grid.SetRow(cell, by + 1); Grid.SetColumn(cell, c + 1);
-                Matrix.Children.Add(cell);
+                AddText($"{7 - c}", 0, colOffset + 1 + c, FontWeights.SemiBold, 0.6, HorizontalAlignment.Center);
+            }
+
+            // Byte rows inside this block
+            for (int r = 0; r < 8; r++)
+            {
+                int byteIdx = b * 8 + r;
+                if (byteIdx >= layout.ByteCount) continue;
+
+                AddText($"B{byteIdx}", r + 1, colOffset, FontWeights.Normal, 0.55, HorizontalAlignment.Center);
+                for (int c = 0; c < 8; c++)
+                {
+                    var cell = new Border { BorderBrush = gridStroke, BorderThickness = new Thickness(0.5), Background = Brushes.Transparent };
+                    Grid.SetRow(cell, r + 1); Grid.SetColumn(cell, colOffset + 1 + c);
+                    Matrix.Children.Add(cell);
+                }
             }
         }
 
-        // Signal segments on top.
+        // Signal segments on top
         foreach (var block in layout.Blocks)
         {
             bool first = true;
             foreach (var seg in block.Segments)
             {
-                if (seg.Byte + 1 > layout.ByteCount) continue;
+                if (seg.Byte >= layout.ByteCount) continue;
+                int b = seg.Byte / 8;
+                int r = seg.Byte % 8;
+                int colOffset = b * 10;
+
                 var border = new Border
                 {
                     Background = BlockBrush(block),
@@ -123,8 +145,8 @@ public partial class FrameView : UserControl
                         Foreground = Brushes.White,
                     };
                 border.MouseLeftButtonUp += Segment_Click;
-                Grid.SetRow(border, seg.Byte + 1);
-                Grid.SetColumn(border, seg.ColStart + 1);
+                Grid.SetRow(border, r + 1);
+                Grid.SetColumn(border, colOffset + 1 + seg.ColStart);
                 Grid.SetColumnSpan(border, seg.Span);
                 Matrix.Children.Add(border);
                 _segmentBorders.Add((block, border));

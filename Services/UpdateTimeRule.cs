@@ -29,14 +29,14 @@ public static class UpdateTimeRule
                 double x = Val(updateTime.Split('+')[0]);
                 double y = Paren();
                 if (Blank(bg) || Blank(bh)) return false;
-                return Val(bg) <= x && Val(bh) <= y;
+                return Val(bg) >= x && Val(bh) >= y;
             }
             if (s3b)  // ...Event...(Y), no '+'
             {
                 double y = Paren();
                 if (!Blank(bg)) return false;
                 if (!double.TryParse(bh, out _)) return false;
-                return Val(bh) <= y;
+                return Val(bh) >= y;
             }
             if (s3a)  // Event, no parens
                 return Blank(bg) && Blank(bh);
@@ -44,7 +44,7 @@ public static class UpdateTimeRule
             {
                 double x = Val(updateTime);
                 if (Blank(bg)) return false;
-                return Val(bg) <= x;   // BH can be anything
+                return Val(bg) >= x;   // BH can be anything
             }
             return false;
         }

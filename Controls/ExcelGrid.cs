@@ -75,6 +75,14 @@ public partial class ColumnFilterState : ObservableObject
     /// <summary>Drops the cached distinct list so it is recomputed next time the popup opens.</summary>
     public void Invalidate() => _built = false;
 
+    [RelayCommand]
+    private void TogglePopup()
+    {
+        IsPopupOpen = !IsPopupOpen;
+    }
+
+    public override string ToString() => Header;
+
     partial void OnIsPopupOpenChanged(bool value)
     {
         if (value) EnsureBuilt();
@@ -228,7 +236,11 @@ public static class ExcelGridBuilder
             if (spec.Filterable)
             {
                 var state = controller.Register(spec);
-                col.Header = new ColumnFilterHeader { DataContext = state };
+                col.Header = state;
+                if (Application.Current != null && Application.Current.TryFindResource("ExcelColumnHeaderTemplate") is DataTemplate headerTpl)
+                {
+                    col.HeaderTemplate = headerTpl;
+                }
             }
             else
             {

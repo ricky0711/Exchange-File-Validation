@@ -52,7 +52,7 @@
                   GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                   RowHeaderWidth="0" SelectionMode="Single">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" Width="90">
+                <DataGridTemplateColumn Header="Severity" Width="90" SortMemberPath="Severity">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Border CornerRadius="4" Padding="8,2" HorizontalAlignment="Left"

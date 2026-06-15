@@ -274,11 +274,51 @@ public partial class MainViewModel : ObservableObject
     private bool CanLoad() => !IsBusy && File_Exists(ExchangeFilePath) && File_Exists(MsgSetPath) && File_Exists(IsrAppliedPath);
     private static bool File_Exists(string p) => !string.IsNullOrWhiteSpace(p) && System.IO.File.Exists(p);
 
+    private async Task CheckAndAutoConfigConsolidatedAsync(string path)
+    {
+        bool isConsolidated = await Task.Run(() =>
+        {
+            try
+            {
+                using var wb = new ClosedXML.Excel.XLWorkbook(path);
+                bool hasDemands = System.Linq.Enumerable.Any(wb.Worksheets, w => w.Name.Equals("ExchangeFile", StringComparison.OrdinalIgnoreCase));
+                bool hasMsgList = System.Linq.Enumerable.Any(wb.Worksheets, w => w.Name.Contains("fd+hs", StringComparison.OrdinalIgnoreCase) || 
+                                                                                w.Name.Contains("fd + hs", StringComparison.OrdinalIgnoreCase) ||
+                                                                                w.Name.Contains("all CAN", StringComparison.OrdinalIgnoreCase) ||
+                                                                                w.Name.Contains("all PDU", StringComparison.OrdinalIgnoreCase));
+                bool hasApplied = System.Linq.Enumerable.Any(wb.Worksheets, w => w.Name.Contains("applied", StringComparison.OrdinalIgnoreCase));
+                return hasDemands && hasMsgList && hasApplied;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+
+        if (isConsolidated)
+        {
+            if (string.IsNullOrEmpty(MsgSetPath) || MsgSetPath == path || !System.IO.File.Exists(MsgSetPath))
+            {
+                MsgSetPath = path;
+            }
+            if (string.IsNullOrEmpty(IsrAppliedPath) || IsrAppliedPath == path || !System.IO.File.Exists(IsrAppliedPath))
+            {
+                IsrAppliedPath = path;
+            }
+            Status = "Consolidated workbook detected. All slots configured.";
+        }
+    }
+
     partial void OnExchangeFilePathChanged(string value)
     {
+        Export.ExchangeFilePath = value;
         LoadCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ExchangeFileName));
         OnPropertyChanged(nameof(IsExchangeFileSelected));
+        if (File_Exists(value))
+        {
+            _ = CheckAndAutoConfigConsolidatedAsync(value);
+        }
     }
 
     partial void OnMsgSetPathChanged(string value)

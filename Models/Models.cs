@@ -26,6 +26,7 @@ public sealed class SignalDef
     public string TransmissionType { get; set; } = "";
     public string Period { get; set; } = "";
     public string ExclTime { get; set; } = "";
+    public string Protocol { get; set; } = "";
 
     public string FunctionalFlag { get; set; } = "";   // Message List 'Functional' column (x/blank), if present
     public bool Functional { get; set; }               // RECOMPUTED from ISR-Applied (any active ISR) — Part F
