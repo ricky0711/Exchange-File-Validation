@@ -166,6 +166,21 @@ public sealed class ReferenceData
         }
     }
 
+    /// <summary>Links message-list signals without a Frame Container column to their container frame name by joining via Contained I-PDU name.</summary>
+    public void LinkContainerFrames()
+    {
+        foreach (var sig in Signals)
+        {
+            if (string.IsNullOrEmpty(sig.FrameContainer) && !string.IsNullOrEmpty(sig.PduName))
+            {
+                if (ContainersByPdu.TryGetValue(sig.PduName, out var list) && list.Count > 0)
+                {
+                    sig.FrameContainer = list[0].FrameName;
+                }
+            }
+        }
+    }
+
     /// <summary>ECU → its home channel segment(s), derived from Network Path (Part C same-channel rule).</summary>
     public Dictionary<string, HashSet<string>> EcuChannels { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -582,13 +597,28 @@ public sealed class ReferenceDataLoader
             data.Dico.AddRange(LoadDico(msg));            // Dico ships with the msg set
             data.Routes.AddRange(LoadRoutes(msg));        // Network Path ships with the msg set
             data.Containers.AddRange(LoadContainers(msg));// Construction of Container frame (assembly layer)
-            data.IndexContainers();
         }
+
+        // Fallbacks: if missing from the message set, load from the Exchange File
+        using (var exWb = new XLWorkbook(exchangeFilePath))
+        {
+            if (data.Dico.Count == 0) data.Dico.AddRange(LoadDico(exWb));
+            if (data.Routes.Count == 0) data.Routes.AddRange(LoadRoutes(exWb));
+            if (data.Containers.Count == 0) data.Containers.AddRange(LoadContainers(exWb));
+        }
+
+        data.IndexContainers();
+        data.LinkContainerFrames();
         data.IndexChannels();   // ECU → home channel, from Network Path segments
 
         progress?.Report("Loading ISR-Applied…");
         using (var appliedWb = new XLWorkbook(isrAppliedPath))
             data.AppliedIsrs.AddRange(LoadAppliedIsrs(appliedWb));
+        if (data.AppliedIsrs.Count == 0)
+        {
+            using (var exWb = new XLWorkbook(exchangeFilePath))
+                data.AppliedIsrs.AddRange(LoadAppliedIsrs(exWb));
+        }
         data.IndexFunctional();   // per-signal functional status from the tranche statuses (Part F)
         data.IndexExplorer();     // PDU→Frame→Signal→ISR join indexes (Feature 1)
 
@@ -621,6 +651,7 @@ public sealed class ReferenceDataLoader
             progress?.Report("Loading Containers…");
             data.Containers.AddRange(LoadContainers(wb));
             data.IndexContainers();
+            data.LinkContainerFrames();
             data.IndexChannels();
 
             progress?.Report("Loading Applied ISRs…");
@@ -652,6 +683,7 @@ public sealed class ReferenceDataLoader
         data.Routes.AddRange(LoadRoutes(wb));
         data.Containers.AddRange(LoadContainers(wb));
         data.IndexContainers();
+        data.LinkContainerFrames();
         data.IndexChannels();
         data.IndexFunctional();
         data.IndexExplorer();
