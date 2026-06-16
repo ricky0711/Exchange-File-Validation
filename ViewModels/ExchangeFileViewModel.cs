@@ -129,6 +129,11 @@ public partial class ExchangeFileViewModel : ObservableObject
             new() { Header = "Loss ASIL", BindingPath = nameof(IsrDemand.LossLinkageAsil), Width = 80, VisibleByDefault = false, Accessor = o => S(o, x => x.LossLinkageAsil) },
             new() { Header = "Corrupt ASIL", BindingPath = nameof(IsrDemand.CorruptDataAsil), Width = 90, VisibleByDefault = false, Accessor = o => S(o, x => x.CorruptDataAsil) },
             new() { Header = "UpdateTime", BindingPath = nameof(IsrDemand.UpdateTime), Width = 100, Accessor = o => S(o, x => x.UpdateTime) },
+            new() { Header = "Synthesis Status", BindingPath = nameof(IsrDemand.SynthesisStatus), Width = 120, VisibleByDefault = false, Accessor = o => S(o, x => x.SynthesisStatus) },
+            new() { Header = "Logical Data", BindingPath = nameof(IsrDemand.LogicalData), Width = 150, VisibleByDefault = false, Accessor = o => S(o, x => x.LogicalData) },
+            new() { Header = "Analog Data", BindingPath = nameof(IsrDemand.AnalogData), Width = 150, VisibleByDefault = false, Accessor = o => S(o, x => x.AnalogData) },
+            new() { Header = "Kind Of Isr", BindingPath = nameof(IsrDemand.KindOfIsr), Width = 100, VisibleByDefault = false, Accessor = o => S(o, x => x.KindOfIsr) },
+            new() { Header = "Other Requirements", BindingPath = nameof(IsrDemand.OtherRequirements), Width = 150, VisibleByDefault = false, Accessor = o => S(o, x => x.OtherRequirements) },
             new() { Header = "Issues", BindingPath = nameof(IsrDemand.Issues), Star = true, Width = 360, Accessor = o => S(o, x => x.Issues) },
         };
     }

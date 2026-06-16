@@ -145,15 +145,25 @@ public sealed class ReferenceData
     public void IndexFunctional()
     {
         FunctionalBySignal.Clear();
+        var functionalPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in AppliedIsrs)
         {
             var sigName = a.Parameter.Trim();
             if (sigName.Length == 0) continue;
             bool wasFunctional = FunctionalBySignal.TryGetValue(sigName, out var f) && f;
             FunctionalBySignal[sigName] = wasFunctional || a.IsActive;   // OR of active ISRs
+
+            if (a.IsActive && a.Frame.Length > 0)
+            {
+                functionalPairs.Add($"{sigName}|{a.Frame.Trim()}");
+            }
         }
         foreach (var sig in Signals)
-            sig.Functional = FunctionalBySignal.TryGetValue(sig.SignalName, out var fn) && fn;
+        {
+            bool isFunctional = functionalPairs.Contains($"{sig.SignalName}|{sig.FrameName}") ||
+                                (sig.FrameContainer.Length > 0 && functionalPairs.Contains($"{sig.SignalName}|{sig.FrameContainer}"));
+            sig.Functional = isFunctional;
+        }
     }
 
     /// <summary>ECU → its home channel segment(s), derived from Network Path (Part C same-channel rule).</summary>

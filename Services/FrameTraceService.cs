@@ -42,8 +42,16 @@ public sealed class FrameTraceService
         }
         else
         {
-            t.Steps.Add(new TraceStep("Route", $"{d.Emitter} → {d.Receiver}",
-                "No Network-Path row — new gateway routing may be required."));
+            if (d.Level is IsrLevel.Level0 or IsrLevel.Level1)
+            {
+                t.Steps.Add(new TraceStep("Route", $"{d.Emitter} → {d.Receiver}",
+                    "Route active (Existing Level 0/1 transmission). No additional gateway routing required."));
+            }
+            else
+            {
+                t.Steps.Add(new TraceStep("Route", $"{d.Emitter} → {d.Receiver}",
+                    "No Network-Path row — new gateway routing may be required."));
+            }
         }
 
         // 4) Container decision (ASIL) — only meaningful for ASIL requests or signals already in a container.

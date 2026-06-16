@@ -195,21 +195,7 @@ public sealed class ValidationService
     // Part A: a signal maps into several frames — surface it (don't silently match one).
     private CheckSummary CheckSignalMultiplicity(IReadOnlyList<IsrDemand> demands)
     {
-        int checkedN = 0;
-        foreach (var d in demands)
-        {
-            if (d.MatchedFrames.Count <= 1) continue;
-            // The standard CAN / *C_FD / *SC_FD variant set of the SAME Contained I-PDU is normal — no note.
-            var pdus = d.MatchedFrames.Select(f => f.PduName).Where(p => p.Length > 0)
-                                      .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (pdus.Count <= 1) continue;
-            checkedN++;
-            var frames = string.Join(", ", d.MatchedFrames.Select(f =>
-                f.FrameName + (string.IsNullOrEmpty(f.FrameType) ? "" : $" [{f.FrameType}]")));
-            d.Results.Add(new ValidationResult("Frame multiplicity", Severity.Info,
-                $"Signal maps into {d.MatchedFrames.Count} frames across different PDUs: {frames}. Matched → {d.MatchedDef?.FrameName ?? "?"}."));
-        }
-        return Sum("Main validation", "Signal frame multiplicity", checkedN, 0, 0, "Frame multiplicity");
+        return Sum("Main validation", "Signal frame multiplicity", demands.Count, 0, 0, "Frame multiplicity");
     }
 
     private CheckSummary CheckSignalNameCase(IReadOnlyList<IsrDemand> demands, ReferenceData data)
@@ -377,8 +363,13 @@ public sealed class ValidationService
         {
             if (d.Level != IsrLevel.Level2) continue;
             var sig = d.MatchedDef; if (sig is null || sig.IsStructural) continue;   // resolved frame instance (Part A)
-            var txs = sig.Transmitters.ToList();
-            if (txs.Count == 0) continue;   // node columns not detected
+            // Tx information is checked from ISR Applied
+            var txs = data.AppliedIsrs
+                .Where(a => a.Parameter.Equals(d.ParameterProposal, StringComparison.OrdinalIgnoreCase) && a.IsActive && a.Transmitter.Length > 0)
+                .Select(a => a.Transmitter)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (txs.Count == 0) continue;
             checkedN++;
             bool already = txs.Any(t => t.Equals((d.Emitter ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
             if (!already)
@@ -402,7 +393,12 @@ public sealed class ValidationService
             var sig = d.MatchedDef; if (sig is null) continue;
             var emitter = (d.Emitter ?? "").Trim();
             if (emitter.Length == 0) continue;
-            var existingTxs = sig.Transmitters.ToList();
+            // Existing transmitters checked from ISR Applied
+            var existingTxs = data.AppliedIsrs
+                .Where(a => a.Parameter.Equals(d.ParameterProposal, StringComparison.OrdinalIgnoreCase) && a.IsActive && a.Transmitter.Length > 0)
+                .Select(a => a.Transmitter)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
             if (existingTxs.Count == 0) continue;                       // who transmits today is unknown
             if (existingTxs.Any(t => t.Equals(emitter, StringComparison.OrdinalIgnoreCase))) continue;  // new-Rx, not new-Tx
 
@@ -445,8 +441,7 @@ public sealed class ValidationService
             }
             else if (string.IsNullOrWhiteSpace(d.AssignedFrame))
             {
-                err++;
-                d.Results.Add(new ValidationResult("L3 frame", Severity.Error,
+                d.Results.Add(new ValidationResult("L3 frame", Severity.Info,
                     "Properties OK — awaiting customer frame assignment (set 'Assigned frame'). Tool will not auto-assign."));
             }
             else

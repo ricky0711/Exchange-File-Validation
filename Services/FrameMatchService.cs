@@ -36,7 +36,7 @@ public sealed class FrameMatchService
         if (name.Length == 0) return new SignalMatch(null, Array.Empty<SignalDef>(), "");
 
         if (data.SignalMappingsByName.TryGetValue(name, out var all) && all.Count > 0)
-            return new SignalMatch(Pick(d, all), all, "Message List");
+            return new SignalMatch(Pick(d, all, data), all, "Message List");
 
         if (data.SecondArchByName is not null && data.SecondArchByName.TryGetValue(name, out var s2))
             return new SignalMatch(s2, new[] { s2 }, "2nd architecture");
@@ -44,7 +44,7 @@ public sealed class FrameMatchService
         return new SignalMatch(null, Array.Empty<SignalDef>(), "");
     }
 
-    private static SignalDef Pick(IsrDemand d, IReadOnlyList<SignalDef> all)
+    private static SignalDef Pick(IsrDemand d, IReadOnlyList<SignalDef> all, ReferenceData data)
     {
         if (all.Count == 1) return all[0];
         IEnumerable<SignalDef> c = all;
@@ -58,6 +58,21 @@ public sealed class FrameMatchService
                 s.FrameContainer.Equals(frame, StringComparison.OrdinalIgnoreCase)).ToList();
             if (byFrame.Count == 1) return byFrame[0];
             if (byFrame.Count > 1) c = byFrame;
+        }
+
+        // (a2) check frame names present in AppliedIsr for this parameter proposal
+        var appliedFrames = data.AppliedIsrs
+            .Where(a => a.Parameter.Equals(d.ParameterProposal, StringComparison.OrdinalIgnoreCase) && a.Frame.Length > 0)
+            .Select(a => a.Frame)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (appliedFrames.Count > 0)
+        {
+            var byAppliedFrame = c.Where(s => appliedFrames.Any(af =>
+                s.FrameName.Equals(af, StringComparison.OrdinalIgnoreCase) ||
+                s.FrameContainer.Equals(af, StringComparison.OrdinalIgnoreCase))).ToList();
+            if (byAppliedFrame.Count == 1) return byAppliedFrame[0];
+            if (byAppliedFrame.Count > 1) c = byAppliedFrame;
         }
 
         // (b) FD vs HS preference from the demand's media / network type
