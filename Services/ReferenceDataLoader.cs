@@ -213,7 +213,8 @@ public sealed class ReferenceData
 
 public sealed class ReferenceDataLoader
 {
-    /// <summary>Load the Message List signal database from an .xlsx. Prefers the superset "Message List all PDU", falls back to "(FD+HS) all CAN".</summary>
+    /// <summary>Load the Message List signal DB from an .xlsx — the UNION of every Message-List worksheet
+    /// (so mappings that exist only on "all PDU", incl. Frame Container linkage, are never dropped).</summary>
     public List<SignalDef> LoadMessageList(string path, IProgress<string>? progress = null)
     {
         progress?.Report("Opening Message List…");
@@ -221,17 +222,91 @@ public sealed class ReferenceDataLoader
         return LoadMessageList(wb, progress);
     }
 
+    private static readonly StringComparison OIC = StringComparison.OrdinalIgnoreCase;
+
+    private static bool IsMessageListSheet(IXLWorksheet ws)
+    {
+        var n = ws.Name ?? "";
+        if (n.Contains("container", OIC) || n.Contains("construction", OIC)) return false;   // that's the CoC sheet
+        bool nameMatch = n.Contains("all PDU", OIC) || n.Contains("fd+hs", OIC) || n.Contains("fd + hs", OIC)
+                      || n.Contains("all CAN", OIC) || n.Contains("message set", OIC) || n.Contains("message list", OIC);
+        if (!nameMatch) return false;
+        try { return new ColumnMap(ws.Row(1)).Col("Signal Name") > 0; }
+        catch { return false; }
+    }
+
+    private static int SheetPriority(IXLWorksheet ws)
+    {
+        var n = ws.Name ?? "";
+        if (n.Contains("all PDU", OIC)) return 0;                                              // container-linked rows win
+        if (n.Contains("fd+hs", OIC) || n.Contains("fd + hs", OIC) || n.Contains("all CAN", OIC)) return 1;
+        if (n.Contains("message set", OIC)) return 2;
+        return 3;
+    }
+
+    private static string KeyOf(SignalDef d) =>
+        string.Join("|", d.SignalName, d.FrameName, d.PduName, d.BytePosition, d.BitPosition);
+
+    // Writable string properties that backfill copies (skips computed/read-only ones).
+    private static readonly System.Reflection.PropertyInfo[] BackfillStringProps =
+        typeof(SignalDef).GetProperties()
+            .Where(p => p.PropertyType == typeof(string) && p.CanRead && p.CanWrite)
+            .ToArray();
+
+    /// <summary>Fill blank fields on the (higher-priority) winner from a duplicate, and union T/R marks. Never overwrites non-blank data.</summary>
+    private static void Backfill(SignalDef t, SignalDef s)
+    {
+        foreach (var p in BackfillStringProps)
+        {
+            if (((string)(p.GetValue(t) ?? "")).Length > 0) continue;
+            var val = (string)(p.GetValue(s) ?? "");
+            if (val.Length > 0) p.SetValue(t, val);
+        }
+        if (t.FrameSize is null && s.FrameSize is not null) t.FrameSize = s.FrameSize;
+        if (t.SignalSizeBits is null && s.SignalSizeBits is not null) t.SignalSizeBits = s.SignalSizeBits;
+
+        foreach (var kv in s.EcuTxRx)
+        {
+            if (!t.EcuTxRx.TryGetValue(kv.Key, out var existing) || existing.Length == 0) { t.EcuTxRx[kv.Key] = kv.Value; continue; }
+            var merged = existing;
+            if (kv.Value.Contains('T', OIC) && !merged.Contains('T', OIC)) merged += "T";
+            if (kv.Value.Contains('R', OIC) && !merged.Contains('R', OIC)) merged += "R";
+            t.EcuTxRx[kv.Key] = merged;
+        }
+    }
+
+    /// <summary>Combine ALL Message-List worksheets into one signal DB; the container-linked "all PDU" rows win,
+    /// duplicates only backfill blanks and union the per-ECU T/R marks (no transmit/receive data is lost).</summary>
     public List<SignalDef> LoadMessageList(IXLWorkbook wb, IProgress<string>? progress = null)
     {
-        // "Message List all PDU" is the superset (one row per signal/PDU/frame, proper Unavailable-Value/Coding
-        // columns, Frame Container linkage). Prefer it; fall back to the older "(FD+HS) all CAN" sheet.
-        var ws = wb.Worksheets.FirstOrDefault(w => w.Name.Contains("fd+hs", StringComparison.OrdinalIgnoreCase) || w.Name.Contains("fd + hs", StringComparison.OrdinalIgnoreCase))
-              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("all CAN", StringComparison.OrdinalIgnoreCase))
-              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("all PDU", StringComparison.OrdinalIgnoreCase))
-              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("message set", StringComparison.OrdinalIgnoreCase))
-              ?? wb.Worksheets.FirstOrDefault(w => w.Name.Contains("message list", StringComparison.OrdinalIgnoreCase))
-              ?? throw new InvalidOperationException("No 'Message List' or 'Message Set' sheet found.");
+        var sheets = wb.Worksheets.Where(IsMessageListSheet).OrderBy(SheetPriority).ToList();
+        if (sheets.Count == 0) throw new InvalidOperationException("No 'Message List' or 'Message Set' sheet found.");
 
+        var combined = new List<SignalDef>();
+        var byKey = new Dictionary<string, SignalDef>(StringComparer.OrdinalIgnoreCase);
+        foreach (var ws in sheets)
+        {
+            var rows = LoadSignalsFromSheet(ws, progress);
+            int added = 0, overlap = 0;
+            foreach (var def in rows)
+            {
+                var key = KeyOf(def);
+                if (byKey.TryGetValue(key, out var winner)) { Backfill(winner, def); overlap++; }
+                else { byKey[key] = def; combined.Add(def); added++; }
+            }
+            var msg = $"'{ws.Name}': +{added:N0} new / {overlap:N0} overlap";
+            progress?.Report(msg);
+            System.Diagnostics.Debug.WriteLine("[MsgList] " + msg);
+        }
+        System.Diagnostics.Debug.WriteLine($"[MsgList] combined total: {combined.Count:N0} mappings "
+            + $"({combined.Count(s => s.FrameContainer.Length > 0):N0} with Frame Container)");
+        progress?.Report($"Message List combined: {combined.Count:N0} mappings");
+        return combined;
+    }
+
+    /// <summary>Parse one Message-List worksheet into signal rows (header-mapped; tags each row with SourceSheet).</summary>
+    private List<SignalDef> LoadSignalsFromSheet(IXLWorksheet ws, IProgress<string>? progress = null)
+    {
         var header = ws.Row(1);
         var m = new ColumnMap(header);
         int cSig = m.Col("Signal Name"), cFrame = m.Col("Frame Name"), cId = m.Col("Frame ID (Hex)", "Frame ID");
@@ -281,6 +356,7 @@ public sealed class ReferenceDataLoader
             if (name.Length == 0) continue;
             var def = new SignalDef
             {
+                SourceSheet = ws.Name,
                 SignalName = name,
                 FrameName = m.Get(row, cFrame),
                 FrameIdHex = m.Get(row, cId),

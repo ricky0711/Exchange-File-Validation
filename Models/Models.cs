@@ -4,6 +4,7 @@ namespace ExchangeFileValidator.Models;
 public sealed class SignalDef
 {
     public string SignalName { get; set; } = "";
+    public string SourceSheet { get; set; } = "";       // which Message-List worksheet this row came from
     public string FrameName { get; set; } = "";
     public string FrameIdHex { get; set; } = "";
     public string FrameType { get; set; } = "";
